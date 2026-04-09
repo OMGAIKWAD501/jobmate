@@ -1,0 +1,69 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import './WorkerCard.css';
+
+const WorkerCard = ({ worker, index = 0 }) => {
+  const { user, skills, rating, hourlyRate, completedJobs } = worker;
+  
+  return (
+    <motion.div 
+      className="worker-card glass-panel"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1, duration: 0.4 }}
+      whileHover={{ y: -5 }}
+    >
+      <div className="worker-header">
+        <div className="worker-avatar-container">
+          <img 
+            src={user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`} 
+            alt={user.name} 
+            className="worker-avatar" 
+          />
+          {rating >= 4.8 && <div className="top-rated-badge">🔥 Top</div>}
+        </div>
+        <div className="worker-info">
+          <h3>{user.name}</h3>
+          <p className="location">
+            <span className="icon">📍</span> {user.location}
+          </p>
+        </div>
+      </div>
+      
+      <div className="worker-details">
+        <div className="skills">
+          {skills.slice(0, 3).map((skill, idx) => (
+            <span key={idx} className="skill-tag">{skill}</span>
+          ))}
+          {skills.length > 3 && <span className="skill-more">+{skills.length - 3}</span>}
+        </div>
+        
+        <div className="stats-divider"></div>
+        
+        <div className="stats">
+          <div className="stat">
+            <span className="stat-value rating">⭐ {rating.toFixed(1)}</span>
+            <span className="stat-label">Rating</span>
+          </div>
+          <div className="stat">
+            <span className="stat-value jobs">{completedJobs}</span>
+            <span className="stat-label">Jobs</span>
+          </div>
+          {hourlyRate && (
+            <div className="stat">
+              <span className="stat-value rate">${hourlyRate}</span>
+              <span className="stat-label">per hr</span>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <Link to={`/workers/${user._id}`} className="btn-primary view-profile">
+        View Profile
+      </Link>
+    </motion.div>
+  );
+};
+
+export default WorkerCard;

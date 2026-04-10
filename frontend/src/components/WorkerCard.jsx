@@ -52,7 +52,7 @@ const WorkerCard = ({ worker, index = 0 }) => {
           </div>
           {hourlyRate && (
             <div className="stat">
-              <span className="stat-value rate">${hourlyRate}</span>
+              <span className="stat-value rate">₹{hourlyRate}</span>
               <span className="stat-label">per hr</span>
             </div>
           )}

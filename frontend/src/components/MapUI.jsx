@@ -15,11 +15,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl
 });
 
-const MapUI = ({ jobs }) => {
-  // Center map to a default or first job's location
-  const center = jobs.length > 0 && jobs[0].geometry?.coordinates 
-    ? [jobs[0].geometry.coordinates[1], jobs[0].geometry.coordinates[0]]
-    : [40.7128, -74.0060]; // Default to New York
+const MapUI = ({ userLocation, workers = [], jobs = [] }) => {
+  const defaultCenter = [20.5937, 78.9629]; // India
+  const center = userLocation ? [userLocation.lat, userLocation.lng] : defaultCenter;
 
   return (
     <div style={{ height: '400px', width: '100%', borderRadius: '16px', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-md)' }}>
@@ -28,19 +26,42 @@ const MapUI = ({ jobs }) => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {jobs.map(job => {
-          if (job.geometry && job.geometry.coordinates) {
-            const [lng, lat] = job.geometry.coordinates;
-            return (
-              <Marker key={job._id} position={[lat, lng]}>
-                <Popup>
-                  <strong>{job.title}</strong><br />
-                  ${job.budget} • {job.duration}
-                </Popup>
-              </Marker>
-            );
-          }
-          return null;
+        {userLocation && (
+          <Marker position={[userLocation.lat, userLocation.lng]}>
+            <Popup>
+              <strong>Your selected location</strong>
+            </Popup>
+          </Marker>
+        )}
+
+        {workers.map((worker) => {
+          const coords = worker?.location?.coordinates;
+          if (!Array.isArray(coords) || coords.length !== 2) return null;
+
+          const [lng, lat] = coords;
+          return (
+            <Marker key={`worker-${worker._id}`} position={[lat, lng]}>
+              <Popup>
+                <strong>{worker.user?.name || 'Worker'}</strong><br />
+                {worker.skills?.join(', ') || 'No skills listed'}
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {jobs.map((job) => {
+          const coords = job?.geometry?.coordinates;
+          if (!Array.isArray(coords) || coords.length !== 2) return null;
+
+          const [lng, lat] = coords;
+          return (
+            <Marker key={`job-${job._id}`} position={[lat, lng]}>
+              <Popup>
+                <strong>{job.title}</strong><br />
+                ₹{job.budget || 0} • {job.location}
+              </Popup>
+            </Marker>
+          );
         })}
       </MapContainer>
     </div>

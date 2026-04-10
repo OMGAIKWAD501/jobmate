@@ -1,5 +1,7 @@
 const Worker = require('../models/Worker');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
+const socketService = require('../services/socketService');
 const Joi = require('joi');
 
 // Validation schemas
@@ -9,6 +11,10 @@ const updateProfileSchema = Joi.object({
   hourlyRate: Joi.number().min(0).optional(),
   description: Joi.string().max(500).optional(),
   availability: Joi.string().valid('available', 'busy', 'unavailable').optional()
+});
+const updateLocationSchema = Joi.object({
+  lat: Joi.number().min(-90).max(90).required(),
+  lng: Joi.number().min(-180).max(180).required()
 });
 
 // Search workers
@@ -51,6 +57,73 @@ exports.searchWorkers = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get nearby workers using geospatial aggregation
+exports.getNearbyWorkers = async (req, res) => {
+  try {
+    const { lat, lng, radius = 10, limit = 20 } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ message: "Latitude and longitude are required" });
+    }
+
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      return res.status(400).json({ message: "Invalid coordinates" });
+    }
+
+    const maxDistance = Math.round(Math.max(parseFloat(radius), 1) * 1000);
+    const maxLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
+
+    const workers = await Worker.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [longitude, latitude]
+          },
+          distanceField: "distanceInMeters",
+          maxDistance,
+          spherical: true
+        }
+      },
+      { $limit: maxLimit },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userDetails"
+        }
+      },
+      { $unwind: "$userDetails" },
+      {
+        $project: {
+          "user": {
+            _id: "$userDetails._id",
+            name: "$userDetails.name",
+            location: "$userDetails.location",
+            phone: "$userDetails.phone",
+            profilePicture: "$userDetails.profilePicture"
+          },
+          skills: 1,
+          experience: 1,
+          hourlyRate: 1,
+          rating: 1,
+          description: 1,
+          completedJobs: 1,
+          distanceInMeters: 1
+        }
+      }
+    ]);
+
+    res.json(workers);
+  } catch (error) {
+    console.error("GeoNear Error:", error);
+    res.status(500).json({ message: "Server error getting nearby workers", error: error.message });
   }
 };
 
@@ -100,6 +173,43 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+// Update worker geo location for nearby search
+exports.updateWorkerLocation = async (req, res) => {
+  try {
+    const { error } = updateLocationSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
+    const { lat, lng } = req.body;
+    const worker = await Worker.findOneAndUpdate(
+      { user: req.user.id },
+      {
+        $set: {
+          location: {
+            type: 'Point',
+            coordinates: [Number(lng), Number(lat)]
+          }
+        },
+        $setOnInsert: {
+          user: req.user.id,
+          skills: []
+        }
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    return res.json({
+      message: 'Worker location updated successfully',
+      location: worker.location
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // Get top rated workers
 exports.getTopWorkers = async (req, res) => {
   try {
@@ -129,4 +239,38 @@ exports.getWorkerReviews = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
-};
+};
+
+// Send direct hire request notification to worker
+exports.sendDirectHireRequest = async (req, res) => {
+  try {
+    const workerUserId = req.params.id;
+
+    const workerUser = await User.findById(workerUserId);
+    if (!workerUser || workerUser.role !== 'worker') {
+      return res.status(404).json({ message: 'Worker not found' });
+    }
+
+    if (String(workerUserId) === String(req.user.id)) {
+      return res.status(400).json({ message: 'You cannot send hire request to yourself' });
+    }
+
+    const requester = await User.findById(req.user.id).select('name');
+
+    const notification = await Notification.create({
+      recipient: workerUserId,
+      sender: req.user.id,
+      type: 'direct_hire_request',
+      title: 'Direct Hire Request',
+      message: `${requester?.name || 'A customer'} wants to hire you directly.`,
+      link: `/workers/${workerUserId}`,
+      actionStatus: 'pending'
+    });
+
+    socketService.emitNotification(workerUserId, notification);
+
+    return res.status(201).json({ message: 'Hire request sent successfully' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

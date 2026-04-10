@@ -58,10 +58,11 @@ const seedData = async () => {
           location: 'New York, NY'
         },
         worker: {
-          skills: ['plumbing', 'pipe repair', 'leak fixing'],
+          skills: ['Plumbing', 'Pipe Repair', 'Water Heater Setup'],
           experience: 8,
-          hourlyRate: 75,
-          description: 'Licensed plumber with 8 years experience. Specialize in residential plumbing repairs and installations.',
+          hourlyRate: 45,
+          location: { type: 'Point', coordinates: [-74.006, 40.7128] }, // NYC
+          description: 'Licensed master plumber with over 8 years of experience. Quick, reliable, and reasonably priced.',
           availability: 'available'
         }
       },

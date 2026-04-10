@@ -17,6 +17,10 @@ const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required()
 });
+const updateLocationSchema = Joi.object({
+  lat: Joi.number().min(-90).max(90).required(),
+  lng: Joi.number().min(-180).max(180).required()
+});
 
 // Generate JWT token
 const generateToken = (user) => {
@@ -128,5 +132,38 @@ exports.getProfile = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Save current user's location (works for customer and worker user profile)
+exports.updateMyLocation = async (req, res) => {
+  try {
+    const { error } = updateLocationSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
+    const { lat, lng } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        $set: {
+          geometry: {
+            type: 'Point',
+            coordinates: [Number(lng), Number(lat)]
+          }
+        }
+      },
+      { new: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json({
+      message: 'Location updated successfully',
+      geometry: updatedUser.geometry
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

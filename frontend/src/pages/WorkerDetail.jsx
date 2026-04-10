@@ -14,6 +14,7 @@ const WorkerDetail = () => {
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [applyingToJob, setApplyingToJob] = useState(null);
   const [applicationMessage, setApplicationMessage] = useState('');
+  const [sendingHireRequest, setSendingHireRequest] = useState(false);
 
   const [reviews, setReviews] = useState([]);
 
@@ -66,7 +67,18 @@ const WorkerDetail = () => {
       return;
     }
 
-    alert('Hire functionality will be implemented with job postings');
+    if (sendingHireRequest) return;
+    setSendingHireRequest(true);
+    try {
+      await axios.post(`/api/workers/${id}/hire-request`);
+      setMessage('Direct hire request sent successfully!');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error sending hire request:', error);
+      alert(error.response?.data?.message || 'Failed to send hire request');
+    } finally {
+      setSendingHireRequest(false);
+    }
   };
 
   const handleApplyForJob = async (jobId) => {
@@ -167,7 +179,7 @@ const WorkerDetail = () => {
             {hourlyRate && (
               <div className="section glass-subpanel">
                 <h2 className="section-heading">Hourly Rate</h2>
-                <p className="text-large text-green">${hourlyRate} <span className="text-sm text-muted">/hr</span></p>
+                <p className="text-large text-green">₹{hourlyRate} <span className="text-sm text-muted">/hr</span></p>
               </div>
             )}
 
@@ -217,8 +229,8 @@ const WorkerDetail = () => {
 
           {user && user.role === 'customer' && (
             <div className="hire-section align-center" style={{ marginTop: '30px' }}>
-              <button onClick={handleHire} className="btn-primary hire-btn giant-btn">
-                Hire {workerUser.name.split(' ')[0]} Now
+              <button onClick={handleHire} className="btn-primary hire-btn giant-btn" disabled={sendingHireRequest}>
+                {sendingHireRequest ? 'Sending Request...' : `Hire ${workerUser.name.split(' ')[0]} Now`}
               </button>
             </div>
           )}
@@ -235,7 +247,7 @@ const WorkerDetail = () => {
                   >
                     <div className="flex-between">
                       <h3>{job.title}</h3>
-                      <span className="job-budget font-bold text-green">${job.budget}</span>
+                      <span className="job-budget font-bold text-green">₹{job.budget}</span>
                     </div>
                     
                     <p className="job-location text-muted" style={{ margin: '8px 0' }}><span className="icon">📍</span> {job.location}</p>

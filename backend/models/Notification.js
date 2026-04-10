@@ -6,9 +6,13 @@ const notificationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   type: {
     type: String,
-    enum: ['application_received', 'application_accepted', 'job_completed', 'new_local_job', 'system'],
+    enum: ['application_received', 'application_accepted', 'job_completed', 'new_local_job', 'direct_hire_request', 'direct_hire_accepted', 'system'],
     required: true
   },
   title: {
@@ -25,6 +29,11 @@ const notificationSchema = new mongoose.Schema({
   read: {
     type: Boolean,
     default: false
+  },
+  actionStatus: {
+    type: String,
+    enum: ['pending', 'accepted', 'rejected'],
+    default: 'pending'
   },
   createdAt: {
     type: Date,

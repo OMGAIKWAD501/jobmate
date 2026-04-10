@@ -17,9 +17,13 @@ export const SocketProvider = ({ children }) => {
     let newSocket;
 
     if (user && user.id) {
+      const configuredUrl = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
+      const socketUrl = configuredUrl
+        ? configuredUrl.replace(/\/+$/, '')
+        : `${window.location.protocol}//${window.location.hostname}:5000`;
+
       // Connect to Socket.io server
-      newSocket = io(window.location.origin.replace('3000', '5000').split(':5000')[0] + ':5000'); 
-      // Hardcodes typical port swap for dev environments, connects to backend port 5000
+      newSocket = io(socketUrl);
 
       setSocket(newSocket);
 

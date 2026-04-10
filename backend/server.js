@@ -9,6 +9,7 @@ require('dotenv').config();
 const app = express();
 const server = http.createServer(app);
 const socketService = require('./services/socketService');
+const { getNearbyMatches } = require('./controllers/locationController');
 
 // Initialize Socket.IO
 socketService.init(server);
@@ -25,12 +26,25 @@ const limiter = rateLimit({
   max: 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.'
 });
-app.use(limiter);
+app.use((req, res, next) => {
+  const isLocationSaveEndpoint =
+    (req.method === 'PUT' && req.path === '/api/auth/location') ||
+    (req.method === 'PUT' && req.path === '/api/workers/location');
+
+  if (isLocationSaveEndpoint) {
+    return next();
+  }
+
+  return limiter(req, res, next);
+});
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/workers', require('./routes/workers'));
 app.use('/api/jobs', require('./routes/jobs'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/location', require('./routes/location'));
+app.get('/api/nearby', getNearbyMatches);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -53,6 +53,17 @@ const workerSchema = new mongoose.Schema({
   verified: {
     type: Boolean,
     default: false
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0] // [lng, lat]
+    }
   }
 }, {
   timestamps: true
@@ -60,5 +71,6 @@ const workerSchema = new mongoose.Schema({
 
 // Index for search
 workerSchema.index({ skills: 1, 'user.location': 1 });
+workerSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Worker', workerSchema);

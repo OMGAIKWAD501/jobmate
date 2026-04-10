@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import WorkerCard from '../components/WorkerCard';
+import useLocationSearch, { RADIUS_OPTIONS } from '../hooks/useLocationSearch';
 import './Workers.css';
 
 const Workers = () => {
@@ -17,6 +18,17 @@ const Workers = () => {
     totalPages: 1,
     total: 0
   });
+  const {
+    locationMode,
+    setLocationMode,
+    coordinates,
+    radiusKm,
+    setRadiusKm,
+    loadingLocation,
+    locationError,
+    resolveCurrentLocation,
+    clearLocation
+  } = useLocationSearch({ defaultMode: 'none' });
 
   const fetchWorkers = async (page = 1) => {
     setLoading(true);
@@ -44,8 +56,48 @@ const Workers = () => {
   };
 
   useEffect(() => {
+    if (coordinates) return;
     fetchWorkers();
-  }, [filters]);
+  }, [filters, coordinates]);
+
+  useEffect(() => {
+    const fetchNearbyWorkers = async () => {
+      if (!coordinates?.lat || !coordinates?.lng) return;
+
+      setLoading(true);
+      try {
+        const response = await axios.get('/api/nearby', {
+          params: {
+            lat: coordinates.lat,
+            lng: coordinates.lng,
+            radius: radiusKm,
+            limit: 20
+          }
+        });
+
+        const nearbyWorkers = response.data.workers || [];
+        setWorkers(nearbyWorkers);
+        setPagination({
+          page: 1,
+          totalPages: 1,
+          total: nearbyWorkers.length
+        });
+      } catch (error) {
+        console.error('Error fetching nearby workers:', error);
+        setWorkers([]);
+        setPagination({
+          page: 1,
+          totalPages: 1,
+          total: 0
+        });
+        setLocationError(error.response?.data?.message || 'Unable to fetch nearby workers.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNearbyWorkers();
+  }, [coordinates, radiusKm]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -59,13 +111,28 @@ const Workers = () => {
     fetchWorkers(newPage);
   };
 
+  const clearNearby = () => {
+    clearLocation();
+    fetchWorkers(1);
+  };
+
   return (
     <div className="workers-page">
       <div className="container">
         <h1>Find Workers</h1>
         
         <div className="filters">
-          <div className="filter-group">
+          <div className="nearby-row">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                setLocationMode('current');
+                resolveCurrentLocation({ preferCache: true });
+              }}
+            >
+              {loadingLocation ? 'Finding nearby...' : 'Find Nearby Workers'}
+            </button>
             <input
               type="text"
               name="skill"
@@ -73,32 +140,17 @@ const Workers = () => {
               value={filters.skill}
               onChange={handleFilterChange}
             />
-            <input
-              type="text"
-              name="location"
-              placeholder="Location"
-              value={filters.location}
-              onChange={handleFilterChange}
-            />
-            <input
-              type="number"
-              name="minRating"
-              placeholder="Min Rating"
-              min="0"
-              max="5"
-              step="0.1"
-              value={filters.minRating}
-              onChange={handleFilterChange}
-            />
-            <input
-              type="number"
-              name="maxRate"
-              placeholder="Max Rate ($/hr)"
-              min="0"
-              value={filters.maxRate}
-              onChange={handleFilterChange}
-            />
+            <button type="button" className="btn-secondary" onClick={clearNearby}>
+              Clear Nearby
+            </button>
+
+            <select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))}>
+              {RADIUS_OPTIONS.map((radius) => (
+                <option key={radius} value={radius}>{radius} km</option>
+              ))}
+            </select>
           </div>
+          {locationError && <p className="text-red-500">{locationError}</p>}
         </div>
 
         {loading ? (
@@ -106,7 +158,10 @@ const Workers = () => {
         ) : (
           <>
             <div className="results-info">
-              <p>Found {pagination.total} workers</p>
+              <p>
+                Found {pagination.total} workers
+                {coordinates ? ` within ${radiusKm} km` : ''}
+              </p>
             </div>
             
             <div className="workers-grid">

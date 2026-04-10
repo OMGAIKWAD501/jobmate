@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
+import NotificationsDropdown from './NotificationsDropdown';
 import './Header.css';
 
 const Header = () => {
@@ -44,13 +45,19 @@ const Header = () => {
           {user ? (
             <>
               <Link to="/dashboard" className={location.pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
-              <div className="user-profile-btn">
-                <div className="avatar">{user.name.charAt(0)}</div>
-                <span className="user-info">{user.name}</span>
+              
+              <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <NotificationsDropdown />
+                
+                <div className="user-profile-btn">
+                  <div className="avatar">{user.name.charAt(0)}</div>
+                  <span className="user-info">{user.name}</span>
+                </div>
+                
+                <button onClick={handleLogout} className="btn-secondary logout-btn">
+                  Logout
+                </button>
               </div>
-              <button onClick={handleLogout} className="btn-secondary logout-btn">
-                Logout
-              </button>
             </>
           ) : (
             <div className="auth-buttons">

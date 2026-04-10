@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import MapUI from '../components/MapUI';
+import NearbyWorkers from '../components/NearbyWorkers';
 import ReviewModal from '../components/ReviewModal';
 import './Dashboard.css';
 
@@ -10,6 +10,10 @@ const Dashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileFeedback, setProfileFeedback] = useState({ type: '', message: '' });
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locationFeedback, setLocationFeedback] = useState({ type: '', message: '' });
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [jobs, setJobs] = useState([]);
@@ -23,10 +27,13 @@ const Dashboard = () => {
     budget: '',
     duration: ''
   });
-  
+  const [jobCoordinates, setJobCoordinates] = useState(null);
+  const [savingJobLocation, setSavingJobLocation] = useState(false);
+  const [jobLocationFeedback, setJobLocationFeedback] = useState({ type: '', message: '' });
+
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedJobForReview, setSelectedJobForReview] = useState(null);
-  
+
   const [editingJobId, setEditingJobId] = useState(null);
   const [editJobForm, setEditJobForm] = useState({
     title: '',
@@ -36,13 +43,19 @@ const Dashboard = () => {
     budget: '',
     duration: ''
   });
+  const [editJobCoordinates, setEditJobCoordinates] = useState(null);
+  const [savingEditJobLocation, setSavingEditJobLocation] = useState(false);
+  const [editJobLocationFeedback, setEditJobLocationFeedback] = useState({ type: '', message: '' });
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const response = await axios.get('/api/auth/profile');
         setProfile(response.data);
-        setFormData(response.data.user);
+        setFormData({
+          ...response.data.user,
+          ...(response.data.workerDetails || {})
+        });
       } catch (error) {
         console.error('Error fetching profile:', error);
       } finally {
@@ -93,6 +106,46 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!profileFeedback.message) return undefined;
+
+    const timer = setTimeout(() => {
+      setProfileFeedback({ type: '', message: '' });
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [profileFeedback]);
+
+  useEffect(() => {
+    if (!locationFeedback.message) return undefined;
+
+    const timer = setTimeout(() => {
+      setLocationFeedback({ type: '', message: '' });
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [locationFeedback]);
+
+  useEffect(() => {
+    if (!jobLocationFeedback.message) return undefined;
+
+    const timer = setTimeout(() => {
+      setJobLocationFeedback({ type: '', message: '' });
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [jobLocationFeedback]);
+
+  useEffect(() => {
+    if (!editJobLocationFeedback.message) return undefined;
+
+    const timer = setTimeout(() => {
+      setEditJobLocationFeedback({ type: '', message: '' });
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [editJobLocationFeedback]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -115,23 +168,50 @@ const Dashboard = () => {
       ...prev,
       [name]: value
     }));
+    if (name === 'location') {
+      setJobCoordinates(null);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (savingProfile) return;
+    setSavingProfile(true);
+    setProfileFeedback({ type: '', message: '' });
+
     try {
       if (user.role === 'worker') {
-        await axios.put('/api/workers/profile', formData);
+        const workerData = {
+          skills: formData.skills || [],
+          experience: formData.experience,
+          hourlyRate: formData.hourlyRate,
+          description: formData.description,
+          availability: formData.availability
+        };
+        // Remove undefined fields
+        Object.keys(workerData).forEach(key => workerData[key] === undefined && delete workerData[key]);
+
+        await axios.put('/api/workers/profile', workerData);
       }
-      setProfile(prev => ({
-        ...prev,
-        user: formData
-      }));
+
+      // Re-fetch profile to keep dashboard state consistent and avoid stale UI crashes.
+      const refreshedProfile = await axios.get('/api/auth/profile');
+      setProfile(refreshedProfile.data);
+      setFormData({
+        ...refreshedProfile.data.user,
+        ...(refreshedProfile.data.workerDetails || {})
+      });
+
       setEditing(false);
-      alert('Profile updated successfully!');
+      setProfileFeedback({ type: 'success', message: 'Profile updated successfully.' });
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Error updating profile');
+      setProfileFeedback({
+        type: 'error',
+        message: error.response?.data?.message || 'Error updating profile'
+      });
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -144,24 +224,78 @@ const Dashboard = () => {
         requiredSkills: jobForm.requiredSkills.split(',').map(skill => skill.trim()).filter(Boolean),
         location: jobForm.location,
       };
-      
+      if (jobCoordinates?.lat && jobCoordinates?.lng) {
+        jobData.lat = jobCoordinates.lat;
+        jobData.lng = jobCoordinates.lng;
+      }
+
       if (jobForm.budget) jobData.budget = parseFloat(jobForm.budget);
       if (jobForm.duration) jobData.duration = jobForm.duration;
 
       await axios.post('/api/jobs', jobData);
       const response = await axios.get('/api/jobs');
       setJobs(response.data.jobs);
-      
+
       setJobForm({
         title: '', description: '', requiredSkills: '',
         location: '', budget: '', duration: ''
       });
+      setJobCoordinates(null);
+      setJobLocationFeedback({ type: '', message: '' });
       setShowJobForm(false);
       alert('Job posted successfully!');
     } catch (error) {
       console.error('Error creating job:', error);
-      alert('Error creating job');
+      alert(error.response?.data?.message || 'Error creating job');
     }
+  };
+
+  const handleShareJobLocation = () => {
+    if (savingJobLocation) return;
+    if (!navigator.geolocation) {
+      setJobLocationFeedback({ type: 'error', message: 'Geolocation is not supported by your browser.' });
+      return;
+    }
+
+    setSavingJobLocation(true);
+    setJobLocationFeedback({ type: '', message: '' });
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const nextCoordinates = {
+          lat: Number(position.coords.latitude),
+          lng: Number(position.coords.longitude)
+        };
+        setJobCoordinates(nextCoordinates);
+
+        try {
+          const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+            params: {
+              format: 'json',
+              lat: nextCoordinates.lat,
+              lon: nextCoordinates.lng
+            }
+          });
+          const address = response?.data?.display_name;
+          if (address) {
+            setJobForm((prev) => ({ ...prev, location: address }));
+          } else {
+            setJobForm((prev) => ({ ...prev, location: `${nextCoordinates.lat.toFixed(5)}, ${nextCoordinates.lng.toFixed(5)}` }));
+          }
+        } catch (error) {
+          setJobForm((prev) => ({ ...prev, location: `${nextCoordinates.lat.toFixed(5)}, ${nextCoordinates.lng.toFixed(5)}` }));
+          console.error('Error reverse geocoding job location:', error);
+        } finally {
+          setJobLocationFeedback({ type: 'success', message: 'Current location shared for this job.' });
+          setSavingJobLocation(false);
+        }
+      },
+      () => {
+        setJobLocationFeedback({ type: 'error', message: 'Unable to access your current location.' });
+        setSavingJobLocation(false);
+      },
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 60000 }
+    );
   };
 
   const handleEditJobClick = (job) => {
@@ -174,13 +308,22 @@ const Dashboard = () => {
       budget: job.budget || '',
       duration: job.duration || ''
     });
+    setEditJobCoordinates(null);
+    setEditJobLocationFeedback({ type: '', message: '' });
   };
 
-  const handleEditJobCancel = () => setEditingJobId(null);
+  const handleEditJobCancel = () => {
+    setEditingJobId(null);
+    setEditJobCoordinates(null);
+    setEditJobLocationFeedback({ type: '', message: '' });
+  };
 
   const handleEditJobChange = (e) => {
     const { name, value } = e.target;
     setEditJobForm(prev => ({ ...prev, [name]: value }));
+    if (name === 'location') {
+      setEditJobCoordinates(null);
+    }
   };
 
   const handleUpdateJob = async (e) => {
@@ -192,6 +335,10 @@ const Dashboard = () => {
         requiredSkills: editJobForm.requiredSkills.split(',').map(skill => skill.trim()).filter(Boolean),
         location: editJobForm.location,
       };
+      if (editJobCoordinates?.lat && editJobCoordinates?.lng) {
+        jobData.lat = editJobCoordinates.lat;
+        jobData.lng = editJobCoordinates.lng;
+      }
 
       if (editJobForm.budget) jobData.budget = parseFloat(editJobForm.budget);
       if (editJobForm.duration) jobData.duration = editJobForm.duration;
@@ -199,8 +346,10 @@ const Dashboard = () => {
       await axios.put(`/api/jobs/${editingJobId}`, jobData);
       const response = await axios.get('/api/jobs');
       setJobs(response.data.jobs);
-      
+
       setEditingJobId(null);
+      setEditJobCoordinates(null);
+      setEditJobLocationFeedback({ type: '', message: '' });
       alert('Job updated successfully!');
     } catch (error) {
       console.error('Error updating job:', error);
@@ -208,11 +357,59 @@ const Dashboard = () => {
     }
   };
 
+  const handleShareEditJobLocation = () => {
+    if (savingEditJobLocation) return;
+    if (!navigator.geolocation) {
+      setEditJobLocationFeedback({ type: 'error', message: 'Geolocation is not supported by your browser.' });
+      return;
+    }
+
+    setSavingEditJobLocation(true);
+    setEditJobLocationFeedback({ type: '', message: '' });
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const nextCoordinates = {
+          lat: Number(position.coords.latitude),
+          lng: Number(position.coords.longitude)
+        };
+        setEditJobCoordinates(nextCoordinates);
+
+        try {
+          const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+            params: {
+              format: 'json',
+              lat: nextCoordinates.lat,
+              lon: nextCoordinates.lng
+            }
+          });
+          const address = response?.data?.display_name;
+          if (address) {
+            setEditJobForm((prev) => ({ ...prev, location: address }));
+          } else {
+            setEditJobForm((prev) => ({ ...prev, location: `${nextCoordinates.lat.toFixed(5)}, ${nextCoordinates.lng.toFixed(5)}` }));
+          }
+        } catch (error) {
+          setEditJobForm((prev) => ({ ...prev, location: `${nextCoordinates.lat.toFixed(5)}, ${nextCoordinates.lng.toFixed(5)}` }));
+          console.error('Error reverse geocoding edit job location:', error);
+        } finally {
+          setEditJobLocationFeedback({ type: 'success', message: 'Current location shared for this job.' });
+          setSavingEditJobLocation(false);
+        }
+      },
+      () => {
+        setEditJobLocationFeedback({ type: 'error', message: 'Unable to access your current location.' });
+        setSavingEditJobLocation(false);
+      },
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 60000 }
+    );
+  };
+
   const handleDeleteJob = async (id) => {
     if (!window.confirm('Are you sure you want to delete this job posting? This action cannot be undone.')) {
       return;
     }
-    
+
     try {
       await axios.delete(`/api/jobs/${id}`);
       setJobs(jobs.filter(job => job._id !== id));
@@ -240,16 +437,58 @@ const Dashboard = () => {
     setReviewModalOpen(true);
   };
 
+  const handleSyncCurrentLocation = () => {
+    if (savingLocation) return;
+
+    setSavingLocation(true);
+    setLocationFeedback({ type: '', message: '' });
+
+    if (!navigator.geolocation) {
+      setLocationFeedback({ type: 'error', message: 'Geolocation is not supported by your browser.' });
+      setSavingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const endpoint = user.role === 'worker' ? '/api/workers/location' : '/api/auth/location';
+          await axios.put(endpoint, {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          setLocationFeedback({ type: 'success', message: 'Current location saved for nearby matching.' });
+        } catch (error) {
+          console.error('Error updating worker location:', error);
+          const apiData = error.response?.data;
+          const message =
+            (typeof apiData === 'string' && apiData) ||
+            apiData?.message ||
+            error.message ||
+            'Failed to save location.';
+          setLocationFeedback({ type: 'error', message: `Failed to save location: ${message}` });
+        } finally {
+          setSavingLocation(false);
+        }
+      },
+      () => {
+        setLocationFeedback({ type: 'error', message: 'Unable to access your current location.' });
+        setSavingLocation(false);
+      },
+      { enableHighAccuracy: false, timeout: 7000, maximumAge: 60000 }
+    );
+  };
+
   if (loading) {
     return (
       <div className="container" style={{ paddingTop: '60px' }}>
-         <motion.div 
-           initial={{ opacity: 0 }} animate={{ opacity: 1 }} 
-           className="dashboard-grid-skeleton"
-         >
-           <div className="glass-panel" style={{ height: '500px', animation: 'pulse 1.5s infinite' }} />
-           <div className="glass-panel" style={{ height: '700px', animation: 'pulse 1.5s infinite' }} />
-         </motion.div>
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="dashboard-grid-skeleton"
+        >
+          <div className="glass-panel" style={{ height: '500px', animation: 'pulse 1.5s infinite' }} />
+          <div className="glass-panel" style={{ height: '700px', animation: 'pulse 1.5s infinite' }} />
+        </motion.div>
       </div>
     );
   }
@@ -257,7 +496,7 @@ const Dashboard = () => {
   if (!profile) return <div className="error glass-panel container mt-40">Unable to load profile</div>;
 
   return (
-    <motion.div 
+    <motion.div
       className="dashboard"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -265,18 +504,54 @@ const Dashboard = () => {
     >
       <div className="container">
         <h1 className="page-title">Dashboard</h1>
-        
+
         <div className="dashboard-content dashboard-grid">
           <motion.div className="profile-section glass-panel" layout>
             <div className="section-header">
               <h2>Profile Information</h2>
-              <button 
-                onClick={() => setEditing(!editing)} 
+              <button
+                onClick={() => setEditing(!editing)}
                 className="btn-secondary"
               >
                 {editing ? 'Cancel' : 'Edit Profile'}
               </button>
             </div>
+
+            {profileFeedback.message && (
+              <div
+                className="mb-15"
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: profileFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
+                  backgroundColor: profileFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                  color: profileFeedback.type === 'success' ? '#10B981' : '#EF4444',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}
+              >
+                <span>{profileFeedback.message}</span>
+                <button
+                  type="button"
+                  onClick={() => setProfileFeedback({ type: '', message: '' })}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    lineHeight: 1,
+                    padding: 0
+                  }}
+                  aria-label="Dismiss message"
+                  title="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            )}
 
             {editing ? (
               <form onSubmit={handleSubmit} className="profile-form">
@@ -284,17 +559,17 @@ const Dashboard = () => {
                   <label>Name:</label>
                   <input type="text" name="name" value={formData.name || ''} onChange={handleInputChange} required className="text-input" />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Email:</label>
                   <input type="email" name="email" value={formData.email || ''} onChange={handleInputChange} required className="text-input" />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Phone:</label>
                   <input type="tel" name="phone" value={formData.phone || ''} onChange={handleInputChange} className="text-input" />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Location:</label>
                   <input type="text" name="location" value={formData.location || ''} onChange={handleInputChange} className="text-input" />
@@ -306,24 +581,26 @@ const Dashboard = () => {
                       <label>Skills (comma-separated):</label>
                       <input type="text" value={formData.skills?.join(', ') || ''} onChange={handleSkillsChange} placeholder="e.g., plumbing, electrical" className="text-input" />
                     </div>
-                    
+
                     <div className="form-group">
                       <label>Experience (years):</label>
                       <input type="number" name="experience" value={formData.experience || 0} onChange={handleInputChange} min="0" className="text-input" />
                     </div>
-                    
+
                     <div className="form-group">
-                      <label>Hourly Rate ($):</label>
+                      <label>Hourly Rate (₹):</label>
                       <input type="number" name="hourlyRate" value={formData.hourlyRate || ''} onChange={handleInputChange} min="0" className="text-input" />
                     </div>
-                    
+
                     <div className="form-group">
                       <label>Description:</label>
                       <textarea name="description" value={formData.description || ''} onChange={handleInputChange} rows="4" className="text-input" />
                     </div>
                   </>
                 )}
-                <button type="submit" className="btn-primary mt-10">Save Changes</button>
+                <button type="submit" className="btn-primary mt-10" disabled={savingProfile}>
+                  {savingProfile ? 'Saving...' : 'Save Changes'}
+                </button>
               </form>
             ) : (
               <div className="profile-display text-body">
@@ -332,28 +609,63 @@ const Dashboard = () => {
                 <p><strong>Role:</strong> <span className="stat-pill">{profile.user.role}</span></p>
                 {profile.user.phone && <p><strong>Phone:</strong> {profile.user.phone}</p>}
                 {profile.user.location && <p><strong>Location:</strong> {profile.user.location}</p>}
-                
+
                 {user.role === 'worker' && profile.workerDetails && (
                   <>
                     <p style={{ marginTop: '10px' }}><strong>Skills:</strong></p>
                     <div className="flex-wrap-gap mb-10">
-                      {profile.workerDetails.skills.map(s => <span key={s} className="skill-tag">{s}</span>)}
+                      {(profile.workerDetails.skills || []).map(s => <span key={s} className="skill-tag">{s}</span>)}
                     </div>
                     <p><strong>Experience:</strong> {profile.workerDetails.experience} years</p>
-                    {profile.workerDetails.hourlyRate && <p><strong>Hourly Rate:</strong> <span className="text-green">${profile.workerDetails.hourlyRate}</span></p>}
+                    {profile.workerDetails.hourlyRate && <p><strong>Hourly Rate:</strong> <span className="text-green">₹{profile.workerDetails.hourlyRate}</span></p>}
                     {profile.workerDetails.description && <p><strong>Description:</strong> {profile.workerDetails.description}</p>}
-                    <p className="mt-10"><strong>Rating:</strong> ⭐ {profile.workerDetails.rating.toFixed(1)}</p>
+                    <p className="mt-10"><strong>Rating:</strong> ⭐ {Number(profile.workerDetails.rating || 0).toFixed(1)}</p>
                     <p><strong>Jobs Completed:</strong> {profile.workerDetails.completedJobs}</p>
+                    <button type="button" className="btn-secondary mt-10" onClick={handleSyncCurrentLocation} disabled={savingLocation}>
+                      {savingLocation ? 'Saving location...' : 'Use Current Location for Nearby Search'}
+                    </button>
+                    {locationFeedback.message && (
+                      <div
+                        className="mt-10"
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: locationFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
+                          backgroundColor: locationFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                          color: locationFeedback.type === 'success' ? '#10B981' : '#EF4444'
+                        }}
+                      >
+                        {locationFeedback.message}
+                      </div>
+                    )}
+                  </>
+                )}
+                {user.role === 'customer' && (
+                  <>
+                    <button type="button" className="btn-secondary mt-10" onClick={handleSyncCurrentLocation} disabled={savingLocation}>
+                      {savingLocation ? 'Saving location...' : 'Save Current Location'}
+                    </button>
+                    {locationFeedback.message && (
+                      <div
+                        className="mt-10"
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: locationFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
+                          backgroundColor: locationFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                          color: locationFeedback.type === 'success' ? '#10B981' : '#EF4444'
+                        }}
+                      >
+                        {locationFeedback.message}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
             )}
             
-            {user.role === 'customer' && jobs.length > 0 && (
-              <div className="mt-30 glass-subpanel">
-                <h3 className="mb-15">Job Map</h3>
-                <MapUI jobs={jobs} />
-              </div>
+            {user.role === 'customer' && (
+              <NearbyWorkers />
             )}
           </motion.div>
 
@@ -372,32 +684,50 @@ const Dashboard = () => {
                     <label>Job Title:</label>
                     <input type="text" name="title" value={jobForm.title} onChange={handleJobFormChange} required placeholder="e.g., Fix Kitchen Sink" className="text-input" />
                   </div>
-                  
+
                   <div className="form-group">
                     <label>Description:</label>
                     <textarea name="description" value={jobForm.description} onChange={handleJobFormChange} required rows="4" className="text-input" />
                   </div>
-                  
+
                   <div className="form-group">
                     <label>Required Skills (comma-separated):</label>
                     <input type="text" name="requiredSkills" value={jobForm.requiredSkills} onChange={handleJobFormChange} required placeholder="e.g., plumbing" className="text-input" />
                   </div>
-                  
+
                   <div className="form-group">
                     <label>Location:</label>
-                    <input type="text" name="location" value={jobForm.location} onChange={handleJobFormChange} required placeholder="e.g., New York, NY" className="text-input" />
+                    <input type="text" name="location" value={jobForm.location} onChange={handleJobFormChange} required placeholder="e.g., Pune,Mumbai" className="text-input" />
+                    <div className="flex-gap mt-10">
+                      <button type="button" className="btn-secondary text-sm" onClick={handleShareJobLocation} disabled={savingJobLocation}>
+                        {savingJobLocation ? 'Sharing location...' : 'Share Current Location'}
+                      </button>
+                      {jobCoordinates && (
+                        <span className="text-xs text-muted">
+                          Shared: {jobCoordinates.lat.toFixed(4)}, {jobCoordinates.lng.toFixed(4)}
+                        </span>
+                      )}
+                    </div>
+                    {jobLocationFeedback.message && (
+                      <p
+                        className="mt-10"
+                        style={{ color: jobLocationFeedback.type === 'success' ? '#10B981' : '#EF4444' }}
+                      >
+                        {jobLocationFeedback.message}
+                      </p>
+                    )}
                   </div>
-                  
+
                   <div className="form-group">
-                    <label>Budget ($):</label>
+                    <label>Budget (₹):</label>
                     <input type="number" name="budget" value={jobForm.budget} onChange={handleJobFormChange} min="0" placeholder="e.g., 150" className="text-input" />
                   </div>
-                  
+
                   <div className="form-group">
                     <label>Duration:</label>
                     <input type="text" name="duration" value={jobForm.duration} onChange={handleJobFormChange} placeholder="e.g., 2 hours" className="text-input" />
                   </div>
-                  
+
                   <button type="submit" className="btn-primary mt-10 w-full">Post Job</button>
                 </form>
               )}
@@ -423,9 +753,27 @@ const Dashboard = () => {
                         <div className="form-group">
                           <label>Location:</label>
                           <input type="text" name="location" value={editJobForm.location} onChange={handleEditJobChange} required className="text-input" />
+                          <div className="flex-gap mt-10">
+                            <button type="button" className="btn-secondary text-sm" onClick={handleShareEditJobLocation} disabled={savingEditJobLocation}>
+                              {savingEditJobLocation ? 'Sharing location...' : 'Share Current Location'}
+                            </button>
+                            {editJobCoordinates && (
+                              <span className="text-xs text-muted">
+                                Shared: {editJobCoordinates.lat.toFixed(4)}, {editJobCoordinates.lng.toFixed(4)}
+                              </span>
+                            )}
+                          </div>
+                          {editJobLocationFeedback.message && (
+                            <p
+                              className="mt-10"
+                              style={{ color: editJobLocationFeedback.type === 'success' ? '#10B981' : '#EF4444' }}
+                            >
+                              {editJobLocationFeedback.message}
+                            </p>
+                          )}
                         </div>
                         <div className="form-group">
-                          <label>Budget ($):</label>
+                          <label>Budget (₹):</label>
                           <input type="number" name="budget" value={editJobForm.budget} onChange={handleEditJobChange} min="0" className="text-input" />
                         </div>
                         <div className="form-group">
@@ -449,14 +797,14 @@ const Dashboard = () => {
                           )}
                         </div>
                         <p className="text-muted"><span className="icon">📍</span> {job.location}</p>
-                        <p className="font-bold text-green mt-10">${job.budget}</p>
+                        <p className="font-bold text-green mt-10">₹{job.budget}</p>
                         <p className="mt-10"><strong>Status:</strong> <span className={`status-badge ${job.status}`}>{job.status}</span></p>
-                        
+
                         {job.applications.length > 0 && (
                           <div className="applications glass-subpanel mt-20">
                             <h4>Applications ({job.applications.length})</h4>
                             <div className="list-gap mt-10">
-                               {job.applications.map(app => (
+                              {job.applications.map(app => (
                                 <div key={app._id} className="application border-left-accent p-10">
                                   <p className="text-active"><strong>Worker:</strong> {app.worker?.name || 'Worker'}</p>
                                   <p className="text-body my-10 italic">"{app.message}"</p>
@@ -471,11 +819,11 @@ const Dashboard = () => {
                             </div>
                           </div>
                         )}
-                        
+
                         {job.status === 'assigned' && (
-                           <button onClick={() => handleOpenReviewModal(job)} className="btn-primary mt-20" style={{ background: '#10B981', borderColor: '#10B981' }}>
-                             Complete Job & Leave Review
-                           </button>
+                          <button onClick={() => handleOpenReviewModal(job)} className="btn-primary mt-20" style={{ background: '#10B981', borderColor: '#10B981' }}>
+                            Complete Job & Leave Review
+                          </button>
                         )}
                       </>
                     )}
@@ -490,8 +838,8 @@ const Dashboard = () => {
               <h2 className="section-header">My Applications</h2>
               <div className="applications-list list-gap mt-20">
                 {applications.map((app, idx) => (
-                  <motion.div 
-                    key={app._id} 
+                  <motion.div
+                    key={app._id}
                     className="application-card glass-subpanel"
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -501,8 +849,8 @@ const Dashboard = () => {
                     <p className="text-muted mb-10"><strong className="text-body">Customer:</strong> {app.customerName}</p>
                     <p className="text-body italic mb-10">"{app.message}"</p>
                     <div className="flex-between align-center mt-15 border-top pt-15">
-                        <span className={`status-badge ${app.status}`}>{app.status}</span>
-                        <span className="text-xs text-muted">Applied: {new Date(app.appliedAt).toLocaleDateString()}</span>
+                      <span className={`status-badge ${app.status}`}>{app.status}</span>
+                      <span className="text-xs text-muted">Applied: {new Date(app.appliedAt).toLocaleDateString()}</span>
                     </div>
                   </motion.div>
                 ))}
@@ -512,13 +860,13 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-      
-      <ReviewModal 
-        isOpen={reviewModalOpen} 
-        onClose={() => setReviewModalOpen(false)} 
+
+      <ReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
         job={selectedJobForReview}
         onReviewSubmitted={() => {
-           axios.get('/api/jobs').then(res => setJobs(res.data.jobs));
+          axios.get('/api/jobs').then(res => setJobs(res.data.jobs));
         }}
       />
     </motion.div>

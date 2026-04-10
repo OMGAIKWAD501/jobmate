@@ -1,11 +1,12 @@
 const express = require('express');
-const { createJob, getJobs, getJobById, applyForJob, acceptApplication, completeJob, getRecommendedJobs, updateJob, reviewJob, deleteJob } = require('../controllers/jobsController');
+const { createJob, getJobs, getJobById, applyForJob, acceptApplication, completeJob, getRecommendedJobs, updateJob, reviewJob, deleteJob, getMyAppliedJobs } = require('../controllers/jobsController');
 const { auth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Public routes
 router.get('/', getJobs);
+router.get('/my-applications', auth, requireRole(['worker']), getMyAppliedJobs);
 router.get('/:id', getJobById);
 
 // Customer-only routes

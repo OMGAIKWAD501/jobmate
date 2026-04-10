@@ -12,9 +12,12 @@ const createJobSchema = Joi.object({
   description: Joi.string().min(10).max(1000).required(),
   requiredSkills: Joi.array().items(Joi.string()).min(1).required(),
   location: Joi.string().required(),
+  lat: Joi.number().min(-90).max(90).optional(),
+  lng: Joi.number().min(-180).max(180).optional(),
   budget: Joi.number().min(0).optional(),
   duration: Joi.string().optional()
-});
+}).unknown(true);
+const updateJobSchema = createJobSchema;
 
 const applyJobSchema = Joi.object({
   message: Joi.string().max(500).optional()
@@ -23,19 +26,29 @@ const applyJobSchema = Joi.object({
 // Create job posting
 exports.createJob = async (req, res) => {
   try {
-    const { error } = createJobSchema.validate(req.body);
+    const { error } = updateJobSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
 
+    const hasSharedCoordinates =
+      Number.isFinite(Number(req.body.lat)) && Number.isFinite(Number(req.body.lng));
+
     let geometry = undefined;
-    if (req.body.location) {
+    if (hasSharedCoordinates) {
+      geometry = {
+        type: 'Point',
+        coordinates: [Number(req.body.lng), Number(req.body.lat)]
+      };
+    } else if (req.body.location) {
       const geo = await geocodeAddress(req.body.location);
       if (geo) {
         geometry = { type: 'Point', coordinates: [geo.longitude, geo.latitude] };
       }
     }
 
+    const { lat, lng, ...jobPayload } = req.body;
+
     const job = new Job({
-      ...req.body,
+      ...jobPayload,
       customer: req.user.id,
       ...(geometry && { geometry })
     });
@@ -70,8 +83,17 @@ exports.updateJob = async (req, res) => {
       return res.status(400).json({ message: 'Only open jobs can be edited' });
     }
 
-    let updateData = { ...req.body };
-    if (req.body.location && req.body.location !== job.location) {
+    const hasSharedCoordinates =
+      Number.isFinite(Number(req.body.lat)) && Number.isFinite(Number(req.body.lng));
+
+    const { lat, lng, ...updatePayload } = req.body;
+    let updateData = { ...updatePayload };
+    if (hasSharedCoordinates) {
+      updateData.geometry = {
+        type: 'Point',
+        coordinates: [Number(lng), Number(lat)]
+      };
+    } else if (req.body.location && req.body.location !== job.location) {
       const geo = await geocodeAddress(req.body.location);
       if (geo) {
         updateData.geometry = { type: 'Point', coordinates: [geo.longitude, geo.latitude] };
@@ -170,6 +192,22 @@ exports.getJobById = async (req, res) => {
     res.json(job);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get current worker's applied job IDs
+exports.getMyAppliedJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find(
+      { 'applications.worker': req.user.id },
+      { _id: 1 }
+    ).lean();
+
+    return res.json({
+      appliedJobIds: jobs.map((job) => String(job._id))
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

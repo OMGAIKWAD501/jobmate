@@ -20,8 +20,8 @@ const useLocationSearch = ({ defaultMode = 'none' } = {}) => {
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (parsed?.lat && parsed?.lng) {
-            setCoordinates({ lat: parsed.lat, lng: parsed.lng });
+          if (Number.isFinite(Number(parsed?.lat)) && Number.isFinite(Number(parsed?.lng))) {
+            setCoordinates({ lat: Number(parsed.lat), lng: Number(parsed.lng) });
           }
         } catch {
           // ignore invalid cached location
@@ -48,7 +48,7 @@ const useLocationSearch = ({ defaultMode = 'none' } = {}) => {
         setLoadingLocation(false);
       },
       () => {
-        setLocationError('Unable to access current location. Try manual location.');
+        setLocationError('Unable to access current location. Please allow GPS permission.');
         setLoadingLocation(false);
       },
       { enableHighAccuracy: false, timeout: 7000, maximumAge: 60000 }

@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import NotificationsDropdown from './NotificationsDropdown';
+import Button from './ui/Button';
 import './Header.css';
 
 const Header = () => {
@@ -10,6 +11,7 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,7 +24,10 @@ const Header = () => {
   const handleLogout = () => {
     logout();
     navigate('/');
+    setMobileOpen(false);
   };
+
+  const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
     <motion.header 
@@ -32,37 +37,42 @@ const Header = () => {
       transition={{ type: 'spring', stiffness: 120, damping: 20 }}
     >
       <div className="container">
-        <Link to="/" className="logo">
-          <motion.h1 whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <span className="logo-icon">⚡</span> JobMate
+        <Link to="/" className="logo" onClick={() => setMobileOpen(false)}>
+          <motion.h1 whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+            <span className="logo-icon">⚡</span>
+            <span>JobMate</span>
           </motion.h1>
         </Link>
-        
-        <nav className="nav">
-          <Link to="/workers" className={location.pathname === '/workers' ? 'active' : ''}>Find Workers</Link>
-          <Link to="/jobs" className={location.pathname === '/jobs' ? 'active' : ''}>Jobs</Link>
-          
+
+        <button type="button" className="mobile-menu-btn" onClick={() => setMobileOpen((prev) => !prev)}>
+          {mobileOpen ? 'Close' : 'Menu'}
+        </button>
+
+        <nav className={`nav ${mobileOpen ? 'open' : ''}`}>
+          <Link to="/workers" className={isActive('/workers') ? 'active' : ''} onClick={() => setMobileOpen(false)}>Find Workers</Link>
+          <Link to="/jobs" className={isActive('/jobs') ? 'active' : ''} onClick={() => setMobileOpen(false)}>Jobs</Link>
+
           {user ? (
             <>
-              <Link to="/dashboard" className={location.pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
-              
-              <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <Link to="/dashboard" className={isActive('/dashboard') ? 'active' : ''} onClick={() => setMobileOpen(false)}>Dashboard</Link>
+
+              <div className="header-actions">
                 <NotificationsDropdown />
-                
+
                 <div className="user-profile-btn">
                   <div className="avatar">{user.name.charAt(0)}</div>
                   <span className="user-info">{user.name}</span>
                 </div>
-                
-                <button onClick={handleLogout} className="btn-secondary logout-btn">
+
+                <Button variant="secondary" className="logout-btn" onClick={handleLogout}>
                   Logout
-                </button>
+                </Button>
               </div>
             </>
           ) : (
             <div className="auth-buttons">
-              <Link to="/login" className="btn-secondary">Login</Link>
-              <Link to="/register" className="btn-primary">Register</Link>
+              <Link to="/login" className="auth-link auth-login" onClick={() => setMobileOpen(false)}>Login</Link>
+              <Link to="/register" className="auth-link auth-register" onClick={() => setMobileOpen(false)}>Register</Link>
             </div>
           )}
         </nav>

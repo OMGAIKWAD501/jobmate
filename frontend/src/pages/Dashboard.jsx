@@ -4,10 +4,11 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import NearbyWorkers from '../components/NearbyWorkers';
 import ReviewModal from '../components/ReviewModal';
+import JobJourneyCard from '../components/JobJourneyCard';
 import './Dashboard.css';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -18,6 +19,7 @@ const Dashboard = () => {
   const [formData, setFormData] = useState({});
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [directRequests, setDirectRequests] = useState([]);
   const [showJobForm, setShowJobForm] = useState(false);
   const [jobForm, setJobForm] = useState({
     title: '',
@@ -47,64 +49,90 @@ const Dashboard = () => {
   const [savingEditJobLocation, setSavingEditJobLocation] = useState(false);
   const [editJobLocationFeedback, setEditJobLocationFeedback] = useState({ type: '', message: '' });
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await axios.get('/api/auth/profile');
-        setProfile(response.data);
-        setFormData({
-          ...response.data.user,
-          ...(response.data.workerDetails || {})
+  const [activeTab, setActiveTab] = useState(user?.role === 'worker' ? 'applications' : 'jobs');
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    try {
+      const response = await axios.get('/api/auth/profile');
+      setProfile(response.data);
+      setFormData({
+        ...response.data.user,
+        ...(response.data.workerDetails || {})
+      });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchJobs = async () => {
+    if (!user) return;
+    try {
+      if (user.role === 'customer') {
+        const response = await axios.get('/api/jobs?status=all');
+        const customerId = user._id || user.id;
+        const myJobs = response.data.jobs.filter(j => {
+          const isOwnJob = (j.customer?._id || j.customer) === customerId;
+          const isDirectRequest = j.isDirectRequest === true || j.status === 'pending' || (j.assignedWorker && (!j.applications || j.applications.length === 0) && j.status !== 'open');
+          return isOwnJob && !isDirectRequest;
         });
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      } finally {
-        setLoading(false);
+        setJobs(myJobs);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    }
+  };
 
-    const fetchJobs = async () => {
-      try {
-        if (user.role === 'customer') {
-          const response = await axios.get('/api/jobs');
-          setJobs(response.data.jobs);
-        }
-      } catch (error) {
-        console.error('Error fetching jobs:', error);
-      }
-    };
-
-    const fetchApplications = async () => {
-      try {
-        if (user.role === 'worker') {
-          const response = await axios.get('/api/jobs');
-          const userApplications = [];
-          response.data.jobs.forEach(job => {
-            job.applications.forEach(app => {
-              if (app.worker === user.id || app.worker === user._id) {
-                userApplications.push({
-                  ...app,
-                  jobTitle: job.title,
-                  jobId: job._id,
-                  customerName: job.customer.name || 'Customer',
-                  status: app.status
-                });
-              }
-            });
+  const fetchApplications = async () => {
+    if (!user) return;
+    try {
+      if (user.role === 'worker') {
+        const response = await axios.get('/api/jobs?status=all');
+        const userApplications = [];
+        response.data.jobs.forEach(job => {
+          job.applications.forEach(app => {
+            const workerId = typeof app.worker === 'object' ? String(app.worker._id) : String(app.worker);
+            const currentUserId = String(user.id || user._id);
+            if (workerId === currentUserId) {
+              userApplications.push({
+                ...app,
+                jobTitle: job.title,
+                jobId: job._id,
+                customerName: job.customer?.name || 'Customer',
+                status: app.status
+              });
+            }
           });
-          setApplications(userApplications);
-        }
-      } catch (error) {
-        console.error('Error fetching applications:', error);
+        });
+        setApplications(userApplications);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+  };
+  
+  const fetchDirectRequests = async () => {
+    if (!user) return;
+    try {
+      const response = await axios.get('/api/jobs/direct-requests');
+      setDirectRequests(response.data.jobs);
+    } catch (error) {
+      console.error('Error fetching direct requests:', error);
+    }
+  };
 
+  useEffect(() => {
     if (user) {
       fetchProfile();
       fetchJobs();
       fetchApplications();
+      fetchDirectRequests();
+    } else if (!authLoading) {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (!profileFeedback.message) return undefined;
@@ -423,8 +451,7 @@ const Dashboard = () => {
   const handleAcceptApplication = async (jobId, applicationId) => {
     try {
       await axios.put(`/api/jobs/${jobId}/applications/${applicationId}/accept`);
-      const response = await axios.get('/api/jobs');
-      setJobs(response.data.jobs);
+      await fetchJobs();
       alert('Application accepted!');
     } catch (error) {
       console.error('Error accepting application:', error);
@@ -452,11 +479,38 @@ const Dashboard = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
+          const latitude = Number(position.coords.latitude);
+          const longitude = Number(position.coords.longitude);
+
           const endpoint = user.role === 'worker' ? '/api/workers/location' : '/api/auth/location';
           await axios.put(endpoint, {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
+            lat: latitude,
+            lng: longitude
           });
+
+          let resolvedAddress = '';
+          try {
+            const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+              params: {
+                format: 'json',
+                lat: latitude,
+                lon: longitude
+              }
+            });
+            resolvedAddress = response?.data?.display_name || '';
+          } catch (reverseGeoError) {
+            console.error('Error reverse geocoding profile location:', reverseGeoError);
+          }
+
+          const fallbackAddress = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+          const nextLocationText = resolvedAddress || fallbackAddress;
+          setFormData((prev) => ({ ...prev, location: nextLocationText }));
+          setProfile((prev) => (
+            prev
+              ? { ...prev, user: { ...prev.user, location: nextLocationText } }
+              : prev
+          ));
+
           setLocationFeedback({ type: 'success', message: 'Current location saved for nearby matching.' });
         } catch (error) {
           console.error('Error updating worker location:', error);
@@ -502,175 +556,251 @@ const Dashboard = () => {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
     >
-      <div className="container">
-        <h1 className="page-title">Dashboard</h1>
+      <div className="dashboard-container container">
+        <div className="dashboard-header flex-between align-center mb-30 glass-panel" style={{ padding: '20px 25px' }}>
+          <div>
+            <h1 className="m-0 text-gradient text-xxl">Welcome, {profile.user.name.split(' ')[0]}</h1>
+            <p className="text-muted m-0 mt-5">Ready to get things done?</p>
+          </div>
+        </div>
 
         <div className="dashboard-content dashboard-grid">
+          
+          {/* Left Column: Profile (Always Visible) */}
           <motion.div className="profile-section glass-panel" layout>
-            <div className="section-header">
-              <h2>Profile Information</h2>
-              <button
-                onClick={() => setEditing(!editing)}
-                className="btn-secondary"
+                <div className="section-header">
+                  <h2>Profile Information</h2>
+                  <button
+                    onClick={() => setEditing(!editing)}
+                    className="btn-secondary"
+                  >
+                    {editing ? 'Cancel' : 'Edit Profile'}
+                  </button>
+                </div>
+
+                {profileFeedback.message && (
+                  <div
+                    className="mb-15"
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      border: profileFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
+                      backgroundColor: profileFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                      color: profileFeedback.type === 'success' ? '#10B981' : '#EF4444',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                  >
+                    <span>{profileFeedback.message}</span>
+                    <button
+                      type="button"
+                      onClick={() => setProfileFeedback({ type: '', message: '' })}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        fontSize: '18px',
+                        lineHeight: 1,
+                        padding: 0
+                      }}
+                      aria-label="Dismiss message"
+                      title="Dismiss"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
+                {editing ? (
+                  <form onSubmit={handleSubmit} className="profile-form">
+                    <div className="form-group">
+                      <label>Name:</label>
+                      <input type="text" name="name" value={formData.name || ''} onChange={handleInputChange} required className="text-input" />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Email:</label>
+                      <input type="email" name="email" value={formData.email || ''} onChange={handleInputChange} required className="text-input" />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Phone:</label>
+                      <input type="tel" name="phone" value={formData.phone || ''} onChange={handleInputChange} className="text-input" />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Location:</label>
+                      <input type="text" name="location" value={formData.location || ''} onChange={handleInputChange} className="text-input" />
+                      <div className="flex-gap mt-10">
+                        <button
+                          type="button"
+                          className="btn-secondary text-sm"
+                          onClick={handleSyncCurrentLocation}
+                          disabled={savingLocation}
+                        >
+                          {savingLocation ? 'Sharing location...' : 'Share Current Location'}
+                        </button>
+                      </div>
+                      {locationFeedback.message && (
+                        <p
+                          className="mt-10"
+                          style={{ color: locationFeedback.type === 'success' ? '#10B981' : '#EF4444' }}
+                        >
+                          {locationFeedback.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {user.role === 'worker' && (
+                      <>
+                        <div className="form-group">
+                          <label>Skills (comma-separated):</label>
+                          <input type="text" value={formData.skills?.join(', ') || ''} onChange={handleSkillsChange} placeholder="e.g., plumbing, electrical" className="text-input" />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Experience (years):</label>
+                          <input type="number" name="experience" value={formData.experience || 0} onChange={handleInputChange} min="0" className="text-input" />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Hourly Rate (₹):</label>
+                          <input type="number" name="hourlyRate" value={formData.hourlyRate || ''} onChange={handleInputChange} min="0" className="text-input" />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Description:</label>
+                          <textarea name="description" value={formData.description || ''} onChange={handleInputChange} rows="4" className="text-input" />
+                        </div>
+                      </>
+                    )}
+                    <button type="submit" className="btn-primary mt-10" disabled={savingProfile}>
+                      {savingProfile ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="profile-display text-body">
+                    <p><strong>Name:</strong> {profile.user.name}</p>
+                    <p><strong>Email:</strong> {profile.user.email}</p>
+                    <p><strong>Role:</strong> <span className="stat-pill">{profile.user.role}</span></p>
+                    {profile.user.phone && <p><strong>Phone:</strong> {profile.user.phone}</p>}
+                    {profile.user.location && <p><strong>Location:</strong> {profile.user.location}</p>}
+
+                    {user.role === 'worker' && profile.workerDetails && (
+                      <>
+                        <p style={{ marginTop: '10px' }}><strong>Skills:</strong></p>
+                        <div className="flex-wrap-gap mb-10">
+                          {(profile.workerDetails.skills || []).map(s => <span key={s} className="skill-tag">{s}</span>)}
+                        </div>
+                        <p><strong>Experience:</strong> {profile.workerDetails.experience} years</p>
+                        {profile.workerDetails.hourlyRate && <p><strong>Hourly Rate:</strong> <span className="text-green">₹{profile.workerDetails.hourlyRate}</span></p>}
+                        {profile.workerDetails.description && <p><strong>Description:</strong> {profile.workerDetails.description}</p>}
+                        <p className="mt-10"><strong>Rating:</strong> ⭐ {Number(profile.workerDetails.rating || 0).toFixed(1)}</p>
+                        <p><strong>Jobs Completed:</strong> {profile.workerDetails.completedJobs}</p>
+                        <button type="button" className="btn-secondary mt-10" onClick={handleSyncCurrentLocation} disabled={savingLocation}>
+                          {savingLocation ? 'Saving location...' : 'Use Current Location for Nearby Search'}
+                        </button>
+                        {locationFeedback.message && (
+                          <div
+                            className="mt-10"
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: locationFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
+                              backgroundColor: locationFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                              color: locationFeedback.type === 'success' ? '#10B981' : '#EF4444'
+                            }}
+                          >
+                            {locationFeedback.message}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {user.role === 'customer' && (
+                      <>
+                        <button type="button" className="btn-secondary mt-10" onClick={handleSyncCurrentLocation} disabled={savingLocation}>
+                          {savingLocation ? 'Saving location...' : 'Save Current Location'}
+                        </button>
+                        {locationFeedback.message && (
+                          <div
+                            className="mt-10"
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: locationFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
+                              backgroundColor: locationFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                              color: locationFeedback.type === 'success' ? '#10B981' : '#EF4444'
+                            }}
+                          >
+                            {locationFeedback.message}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                {user.role === 'customer' && (
+                  <NearbyWorkers />
+                )}
+              </motion.div>
+
+          {/* Right Column: Tabs and Dynamic Content */}
+          <div className="dashboard-right-column" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            <div className="dashboard-tabs glass-panel" style={{ marginBottom: 0 }}>
+              
+              {user.role === 'customer' && (
+                <button 
+                  className={`tab-btn ${activeTab === 'jobs' ? 'active' : ''}`} 
+                  onClick={() => setActiveTab('jobs')}
+                >
+                  My Postings
+                </button>
+              )}
+
+              {user.role === 'worker' && (
+                <button 
+                  className={`tab-btn ${activeTab === 'applications' ? 'active' : ''}`} 
+                  onClick={() => setActiveTab('applications')}
+                >
+                  My Applications
+                </button>
+              )}
+
+              <button 
+                className={`tab-btn ${activeTab === 'direct-requests' ? 'active' : ''}`} 
+                onClick={() => setActiveTab('direct-requests')}
               >
-                {editing ? 'Cancel' : 'Edit Profile'}
+                Direct Requests 
+                {directRequests.length > 0 && <span className="tab-badge">{directRequests.length}</span>}
               </button>
+              
             </div>
 
-            {profileFeedback.message && (
-              <div
-                className="mb-15"
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  border: profileFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
-                  backgroundColor: profileFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                  color: profileFeedback.type === 'success' ? '#10B981' : '#EF4444',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '10px'
-                }}
-              >
-                <span>{profileFeedback.message}</span>
-                <button
-                  type="button"
-                  onClick={() => setProfileFeedback({ type: '', message: '' })}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'inherit',
-                    cursor: 'pointer',
-                    fontSize: '18px',
-                    lineHeight: 1,
-                    padding: 0
-                  }}
-                  aria-label="Dismiss message"
-                  title="Dismiss"
-                >
-                  ×
-                </button>
+            {activeTab === 'direct-requests' && (
+              <motion.div className="direct-requests-section glass-panel" layout>
+              <div className="section-header">
+                <h2>Direct Job Requests</h2>
               </div>
-            )}
-
-            {editing ? (
-              <form onSubmit={handleSubmit} className="profile-form">
-                <div className="form-group">
-                  <label>Name:</label>
-                  <input type="text" name="name" value={formData.name || ''} onChange={handleInputChange} required className="text-input" />
-                </div>
-
-                <div className="form-group">
-                  <label>Email:</label>
-                  <input type="email" name="email" value={formData.email || ''} onChange={handleInputChange} required className="text-input" />
-                </div>
-
-                <div className="form-group">
-                  <label>Phone:</label>
-                  <input type="tel" name="phone" value={formData.phone || ''} onChange={handleInputChange} className="text-input" />
-                </div>
-
-                <div className="form-group">
-                  <label>Location:</label>
-                  <input type="text" name="location" value={formData.location || ''} onChange={handleInputChange} className="text-input" />
-                </div>
-
-                {user.role === 'worker' && (
-                  <>
-                    <div className="form-group">
-                      <label>Skills (comma-separated):</label>
-                      <input type="text" value={formData.skills?.join(', ') || ''} onChange={handleSkillsChange} placeholder="e.g., plumbing, electrical" className="text-input" />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Experience (years):</label>
-                      <input type="number" name="experience" value={formData.experience || 0} onChange={handleInputChange} min="0" className="text-input" />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Hourly Rate (₹):</label>
-                      <input type="number" name="hourlyRate" value={formData.hourlyRate || ''} onChange={handleInputChange} min="0" className="text-input" />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Description:</label>
-                      <textarea name="description" value={formData.description || ''} onChange={handleInputChange} rows="4" className="text-input" />
-                    </div>
-                  </>
-                )}
-                <button type="submit" className="btn-primary mt-10" disabled={savingProfile}>
-                  {savingProfile ? 'Saving...' : 'Save Changes'}
-                </button>
-              </form>
-            ) : (
-              <div className="profile-display text-body">
-                <p><strong>Name:</strong> {profile.user.name}</p>
-                <p><strong>Email:</strong> {profile.user.email}</p>
-                <p><strong>Role:</strong> <span className="stat-pill">{profile.user.role}</span></p>
-                {profile.user.phone && <p><strong>Phone:</strong> {profile.user.phone}</p>}
-                {profile.user.location && <p><strong>Location:</strong> {profile.user.location}</p>}
-
-                {user.role === 'worker' && profile.workerDetails && (
-                  <>
-                    <p style={{ marginTop: '10px' }}><strong>Skills:</strong></p>
-                    <div className="flex-wrap-gap mb-10">
-                      {(profile.workerDetails.skills || []).map(s => <span key={s} className="skill-tag">{s}</span>)}
-                    </div>
-                    <p><strong>Experience:</strong> {profile.workerDetails.experience} years</p>
-                    {profile.workerDetails.hourlyRate && <p><strong>Hourly Rate:</strong> <span className="text-green">₹{profile.workerDetails.hourlyRate}</span></p>}
-                    {profile.workerDetails.description && <p><strong>Description:</strong> {profile.workerDetails.description}</p>}
-                    <p className="mt-10"><strong>Rating:</strong> ⭐ {Number(profile.workerDetails.rating || 0).toFixed(1)}</p>
-                    <p><strong>Jobs Completed:</strong> {profile.workerDetails.completedJobs}</p>
-                    <button type="button" className="btn-secondary mt-10" onClick={handleSyncCurrentLocation} disabled={savingLocation}>
-                      {savingLocation ? 'Saving location...' : 'Use Current Location for Nearby Search'}
-                    </button>
-                    {locationFeedback.message && (
-                      <div
-                        className="mt-10"
-                        style={{
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: locationFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
-                          backgroundColor: locationFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                          color: locationFeedback.type === 'success' ? '#10B981' : '#EF4444'
-                        }}
-                      >
-                        {locationFeedback.message}
-                      </div>
-                    )}
-                  </>
-                )}
-                {user.role === 'customer' && (
-                  <>
-                    <button type="button" className="btn-secondary mt-10" onClick={handleSyncCurrentLocation} disabled={savingLocation}>
-                      {savingLocation ? 'Saving location...' : 'Save Current Location'}
-                    </button>
-                    {locationFeedback.message && (
-                      <div
-                        className="mt-10"
-                        style={{
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: locationFeedback.type === 'success' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(239,68,68,0.4)',
-                          backgroundColor: locationFeedback.type === 'success' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                          color: locationFeedback.type === 'success' ? '#10B981' : '#EF4444'
-                        }}
-                      >
-                        {locationFeedback.message}
-                      </div>
-                    )}
-                  </>
-                )}
+              <div className="list-gap mt-20" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                {directRequests.map(job => (
+                  <JobJourneyCard 
+                    key={job._id} 
+                    job={job} 
+                    onUpdate={() => axios.get('/api/jobs/direct-requests').then(res => setDirectRequests(res.data.jobs))} 
+                    onOpenReview={() => handleOpenReviewModal(job)}
+                  />
+                ))}
               </div>
+              </motion.div>
             )}
-            
-            {user.role === 'customer' && (
-              <NearbyWorkers />
-            )}
-          </motion.div>
 
-          {user.role === 'customer' && (
-            <motion.div className="jobs-section glass-panel" layout>
+            {activeTab === 'jobs' && user.role === 'customer' && (
+              <motion.div className="jobs-section glass-panel" layout>
               <div className="section-header">
                 <h2>My Job Postings</h2>
                 <button onClick={() => setShowJobForm(!showJobForm)} className="btn-primary">
@@ -734,9 +864,9 @@ const Dashboard = () => {
 
               <div className="jobs-list list-gap mt-20">
                 {jobs.map((job, idx) => (
-                  <motion.div key={job._id} className="job-card glass-subpanel" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
+                  <motion.div key={job._id} className="job-card-wrapper" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
                     {editingJobId === job._id ? (
-                      <form onSubmit={handleUpdateJob} className="job-form">
+                      <form onSubmit={handleUpdateJob} className="job-form glass-subpanel p-20 mb-20">
                         <h3 className="mb-10">Edit Job</h3>
                         <div className="form-group">
                           <label>Job Title:</label>
@@ -765,11 +895,11 @@ const Dashboard = () => {
                           </div>
                           {editJobLocationFeedback.message && (
                             <p
-                              className="mt-10"
-                              style={{ color: editJobLocationFeedback.type === 'success' ? '#10B981' : '#EF4444' }}
-                            >
-                              {editJobLocationFeedback.message}
-                            </p>
+                          className="mt-10"
+                          style={{ color: editJobLocationFeedback.type === 'success' ? '#10B981' : '#EF4444' }}
+                        >
+                          {editJobLocationFeedback.message}
+                        </p>
                           )}
                         </div>
                         <div className="form-group">
@@ -785,8 +915,8 @@ const Dashboard = () => {
                           <button type="button" className="btn-secondary" onClick={handleEditJobCancel}>Cancel</button>
                         </div>
                       </form>
-                    ) : (
-                      <>
+                    ) : job.status === 'open' ? (
+                      <div className="glass-subpanel p-20 mb-20">
                         <div className="flex-between align-start mb-10">
                           <h3 className="m-0 text-active" style={{ fontSize: '1.25rem' }}>{job.title}</h3>
                           {job.status === 'open' && (
@@ -800,7 +930,7 @@ const Dashboard = () => {
                         <p className="font-bold text-green mt-10">₹{job.budget}</p>
                         <p className="mt-10"><strong>Status:</strong> <span className={`status-badge ${job.status}`}>{job.status}</span></p>
 
-                        {job.applications.length > 0 && (
+                        {job.applications?.length > 0 && job.status === 'open' && (
                           <div className="applications glass-subpanel mt-20">
                             <h4>Applications ({job.applications.length})</h4>
                             <div className="list-gap mt-10">
@@ -819,22 +949,23 @@ const Dashboard = () => {
                             </div>
                           </div>
                         )}
-
-                        {job.status === 'assigned' && (
-                          <button onClick={() => handleOpenReviewModal(job)} className="btn-primary mt-20" style={{ background: '#10B981', borderColor: '#10B981' }}>
-                            Complete Job & Leave Review
-                          </button>
-                        )}
-                      </>
+                      </div>
+                    ) : (
+                      <div className="mb-20">
+                        <JobJourneyCard job={job} onUpdate={fetchJobs} onOpenReview={() => handleOpenReviewModal(job)} />
+                      </div>
                     )}
                   </motion.div>
                 ))}
               </div>
-            </motion.div>
-          )}
+              <div className="pagination">
+                {/* Add pagination logic if required later */}
+              </div>
+              </motion.div>
+            )}
 
-          {user.role === 'worker' && (
-            <motion.div className="applications-section glass-panel" layout>
+            {activeTab === 'applications' && user.role === 'worker' && (
+              <motion.div className="applications-section glass-panel" layout>
               <h2 className="section-header">My Applications</h2>
               <div className="applications-list list-gap mt-20">
                 {applications.map((app, idx) => (
@@ -856,8 +987,9 @@ const Dashboard = () => {
                 ))}
                 {applications.length === 0 && <p className="text-muted italic">You haven't applied to any jobs yet.</p>}
               </div>
-            </motion.div>
-          )}
+              </motion.div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -866,7 +998,8 @@ const Dashboard = () => {
         onClose={() => setReviewModalOpen(false)}
         job={selectedJobForReview}
         onReviewSubmitted={() => {
-          axios.get('/api/jobs').then(res => setJobs(res.data.jobs));
+          fetchJobs();
+          fetchDirectRequests();
         }}
       />
     </motion.div>

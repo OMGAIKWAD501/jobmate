@@ -292,15 +292,15 @@ const seedData = async () => {
     // Sample reviews
     const reviews = [
       {
-        reviewer: createdCustomers[2]._id,
-        reviewee: createdWorkers[2].user._id,
+        customer: createdCustomers[2]._id,
+        worker: createdWorkers[2].user._id,
         job: createdJobs[2]._id,
         rating: 5,
         comment: 'David did an excellent job installing the bookshelf. Very professional and the work is perfect.'
       },
       {
-        reviewer: createdCustomers[1]._id,
-        reviewee: createdWorkers[1].user._id,
+        customer: createdCustomers[1]._id,
+        worker: createdWorkers[1].user._id,
         job: createdJobs[1]._id,
         rating: 4,
         comment: 'Maria was great with the electrical work. Completed on time and explained everything clearly.'
@@ -313,8 +313,8 @@ const seedData = async () => {
       await newReview.save();
 
       // Update worker rating
-      const worker = await Worker.findOne({ user: review.reviewee });
-      const allReviews = await Review.find({ reviewee: review.reviewee });
+      const worker = await Worker.findOne({ user: review.worker });
+      const allReviews = await Review.find({ worker: review.worker });
       const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
       worker.rating = Math.round(avgRating * 10) / 10;
       worker.totalReviews = allReviews.length;

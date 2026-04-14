@@ -21,12 +21,16 @@ const Workers = () => {
   const {
     locationMode,
     setLocationMode,
+    manualQuery,
+    setManualQuery,
     coordinates,
     radiusKm,
     setRadiusKm,
     loadingLocation,
     locationError,
+    setLocationError,
     resolveCurrentLocation,
+    resolveManualLocation,
     clearLocation
   } = useLocationSearch({ defaultMode: 'none' });
 
@@ -122,25 +126,29 @@ const Workers = () => {
         <h1>Find Workers</h1>
         
         <div className="filters">
-          <div className="nearby-row">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => {
-                setLocationMode('current');
-                resolveCurrentLocation({ preferCache: true });
-              }}
-            >
-              {loadingLocation ? 'Finding nearby...' : 'Find Nearby Workers'}
-            </button>
+          <div className="filter-group" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
             <input
               type="text"
               name="skill"
               placeholder="Skill (e.g., plumber)"
               value={filters.skill}
               onChange={handleFilterChange}
+              style={{ minWidth: '220px' }}
             />
-            <button type="button" className="btn-secondary" onClick={clearNearby}>
+            <button
+              className="btn-primary"
+              type="button"
+              onClick={() => {
+                setLocationMode('current');
+                resolveCurrentLocation({ preferCache: false });
+              }}
+            >
+              {loadingLocation ? 'Getting location...' : 'Find Nearby Workers'}
+            </button>
+            <button className="btn-secondary" type="button" onClick={() => setLocationMode('manual')}>
+              Manual Location
+            </button>
+            <button className="btn-secondary" type="button" onClick={clearNearby}>
               Clear Nearby
             </button>
 
@@ -150,6 +158,17 @@ const Workers = () => {
               ))}
             </select>
           </div>
+          {locationMode === 'manual' && (
+            <form onSubmit={resolveManualLocation} style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                placeholder="Enter city or pincode"
+                value={manualQuery}
+                onChange={(e) => setManualQuery(e.target.value)}
+              />
+              <button type="submit" className="btn-primary">Search Nearby</button>
+            </form>
+          )}
           {locationError && <p className="text-red-500">{locationError}</p>}
         </div>
 

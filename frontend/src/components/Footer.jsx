@@ -6,32 +6,28 @@ const Footer = () => {
   return (
     <footer className="footer">
       <div className="container footer-container">
-        
-        {/* Logo & About */}
         <div className="footer-section">
           <h2 className="logo">JobMate</h2>
           <p>
-            Connecting skilled workers with customers easily and efficiently.
+            A modern hiring network that connects reliable local workers with customers in minutes.
           </p>
+          <span className="footer-badge">Built for trust and speed</span>
         </div>
 
-        {/* Quick Links */}
         <div className="footer-section">
-          <h3>Quick Links</h3>
+          <h3>Explore</h3>
           <Link to="/workers">Find Workers</Link>
           <Link to="/jobs">Browse Jobs</Link>
           <Link to="/dashboard">Dashboard</Link>
         </div>
 
-        {/* Support */}
         <div className="footer-section">
           <h3>Support</h3>
           <Link to="/login">Login</Link>
           <Link to="/register">Register</Link>
-          <a href="#">Help Center</a>
+          <a href="mailto:support@jobmate.com">Help Center</a>
         </div>
 
-        {/* Contact */}
         <div className="footer-section">
           <h3>Contact</h3>
           <p>Email: support@jobmate.com</p>
@@ -41,7 +37,6 @@ const Footer = () => {
 
       </div>
 
-      {/* Bottom */}
       <div className="footer-bottom">
         <p>© {new Date().getFullYear()} JobMate. All rights reserved.</p>
       </div>

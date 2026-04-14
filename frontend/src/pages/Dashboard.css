@@ -1,5 +1,5 @@
 .dashboard {
-  padding: 40px 0;
+  padding: 44px 0;
   min-height: calc(100vh - 80px);
 }
 
@@ -28,14 +28,13 @@
   align-items: center;
   margin-bottom: 25px;
   padding-bottom: 15px;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .section-header h2 {
   font-size: 24px;
-  color: var(--text-active);
+  color: #111827;
   margin: 0;
-  font-family: var(--font-heading);
 }
 
 .profile-display p {
@@ -46,7 +45,7 @@
 .profile-display strong {
   display: inline-block;
   min-width: 120px;
-  color: var(--text-active);
+  color: #111827;
 }
 
 .profile-form {
@@ -63,7 +62,7 @@
 .form-group label {
   margin-bottom: 8px;
   font-weight: 500;
-  color: var(--text-active);
+  color: #111827;
   font-size: 14px;
 }
 
@@ -78,20 +77,22 @@
 }
 
 .job-form {
-  border: 1px solid var(--border-color);
+  border: 1px solid #e5e7eb;
   padding: 24px;
+  border-radius: 16px;
+  background: #ffffff;
 }
 
 .job-form h3 {
-  color: var(--text-active);
+  color: #111827;
   margin-bottom: 20px;
 }
 
 /* Application specific styles */
 .applications h4 {
-  color: var(--text-active);
+  color: #111827;
   font-size: 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #e5e7eb;
   padding-bottom: 10px;
 }
 
@@ -101,19 +102,20 @@
 }
 
 .application:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: #f9fafb;
 }
 
 .border-left-accent {
-  border-left: 3px solid var(--primary-color);
+  border-left: 3px solid #2563eb;
 }
 
 /* Missing Layout Utility Classes from overhauls */
 .glass-subpanel {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
   padding: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
 
 .list-gap {
@@ -142,13 +144,13 @@
 }
 
 .skill-tag {
-  background: rgba(79, 70, 229, 0.15);
-  color: #818CF8;
+  background: #eff6ff;
+  color: #1d4ed8;
   padding: 4px 12px;
   border-radius: 100px;
   font-size: 13px;
   font-weight: 500;
-  border: 1px solid rgba(79, 70, 229, 0.3);
+  border: 1px solid #bfdbfe;
 }
 
 .status-badge {
@@ -161,28 +163,28 @@
 }
 
 .status-badge.open {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34D399;
+  background: #dcfce7;
+  color: #15803d;
 }
 .status-badge.assigned {
-  background: rgba(245, 158, 11, 0.15);
-  color: #FBBF24;
+  background: #ffedd5;
+  color: #c2410c;
 }
 .status-badge.completed {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60A5FA;
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 .status-badge.pending {
-  background: rgba(156, 163, 175, 0.15);
-  color: #9CA3AF;
+  background: #f3f4f6;
+  color: #6b7280;
 }
 .status-badge.accepted {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34D399;
+  background: #dcfce7;
+  color: #15803d;
 }
 .status-badge.rejected {
-  background: rgba(239, 68, 68, 0.15);
-  color: #F87171;
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .mt-10 { margin-top: 10px; }
@@ -197,8 +199,8 @@
 
 .w-full { width: 100%; }
 .italic { font-style: italic; }
-.text-green { color: #34D399; }
-.border-top { border-top: 1px solid var(--border-color); }
+.text-green { color: #15803d; }
+.border-top { border-top: 1px solid #e5e7eb; }
 .pt-15 { padding-top: 15px; }
 
 @media (max-width: 768px) {
@@ -213,4 +215,64 @@
     display: block;
     margin-bottom: 4px;
   }
-}
+}
+.dashboard-tabs {
+  display: flex;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 8px;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 12px 20px;
+  color: #6b7280;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.tab-btn:hover {
+  background: rgba(0, 0, 0, 0.03);
+  color: #111827;
+}
+
+.tab-btn.active {
+  background: #8B5CF6;
+  color: #fff;
+  border: 1px solid #7C3AED;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.15);
+}
+
+.tab-badge {
+  background: #3B82F6;
+  color: white;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 0 6px;
+}
+
+.tab-content-container {
+  display: flex;
+  flex-direction: column;
+}

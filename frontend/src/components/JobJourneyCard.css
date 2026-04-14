@@ -1,0 +1,72 @@
+.job-journey-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.job-journey-card.pending { border-left: 4px solid #F59E0B; }
+.job-journey-card.accepted { border-left: 4px solid #3B82F6; }
+.job-journey-card.in-progress { border-left: 4px solid #10B981; }
+.job-journey-card.completed { border-left: 4px solid #8B5CF6; }
+
+.journey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.journey-status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.journey-status-badge.pending { background: rgba(245, 158, 11, 0.15); color: #FCD34D; }
+.journey-status-badge.accepted { background: rgba(59, 130, 246, 0.15); color: #93C5FD; }
+.journey-status-badge.in-progress { background: rgba(16, 185, 129, 0.15); color: #6EE7B7; }
+.journey-status-badge.completed { background: rgba(139, 92, 246, 0.15); color: #C4B5FD; }
+
+.journey-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.step-indicator {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.step.active {
+  opacity: 1;
+}
+
+.step-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  color: inherit;
+}

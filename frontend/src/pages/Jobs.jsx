@@ -176,11 +176,11 @@ const Jobs = () => {
           Job Marketplace
         </motion.h1>
 
-        <div className="glass-panel" style={{ marginBottom: '20px', padding: '14px' }}>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'nowrap', alignItems: 'center', overflowX: 'auto', paddingBottom: '4px' }}>
+        <div className="glass-panel jobs-toolbar">
+          <div className="jobs-toolbar-row">
             <button
               type="button"
-              className="btn-primary"
+              className="btn-primary toolbar-control"
               onClick={() => {
                 setLocationMode('current');
                 setInfoMessage('');
@@ -188,15 +188,14 @@ const Jobs = () => {
                 setEffectiveRadiusKm(null);
                 resolveCurrentLocation({ preferCache: false });
               }}
-              style={{ flexShrink: 0 }}
             >
               {loadingLocation ? 'Finding nearby...' : 'Find Nearby Jobs'}
             </button>
-            <button type="button" className="btn-secondary" onClick={clearNearby} style={{ flexShrink: 0 }}>
+            <button type="button" className="btn-secondary toolbar-control" onClick={clearNearby}>
               Clear Nearby
             </button>
 
-            <select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))} style={{ flexShrink: 0 }}>
+            <select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))} className="toolbar-control">
               {RADIUS_OPTIONS.map((radius) => (
                 <option key={radius} value={radius}>{radius} km</option>
               ))}
@@ -204,12 +203,12 @@ const Jobs = () => {
           </div>
 
           {coordinates && (
-            <p style={{ marginTop: '10px', marginBottom: 0 }}>
+            <p className="toolbar-meta">
               Showing nearby jobs within {effectiveRadiusKm || radiusKm} km
             </p>
           )}
-          {locationError && <p className="text-red-500" style={{ marginTop: '8px' }}>{locationError}</p>}
-          {infoMessage && <p style={{ marginTop: '8px', color: '#93C5FD' }}>{infoMessage}</p>}
+          {locationError && <p className="toolbar-error">{locationError}</p>}
+          {infoMessage && <p className="toolbar-info">{infoMessage}</p>}
         </div>
 
         {error && <div className="error glass-panel">{error}</div>}

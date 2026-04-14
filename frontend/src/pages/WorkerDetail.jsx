@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
+import DirectHireModal from '../components/DirectHireModal';
 import './WorkerDetail.css';
 
 const WorkerDetail = () => {
@@ -14,7 +15,7 @@ const WorkerDetail = () => {
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [applyingToJob, setApplyingToJob] = useState(null);
   const [applicationMessage, setApplicationMessage] = useState('');
-  const [sendingHireRequest, setSendingHireRequest] = useState(false);
+  const [hireModalOpen, setHireModalOpen] = useState(false);
 
   const [reviews, setReviews] = useState([]);
 
@@ -56,7 +57,7 @@ const WorkerDetail = () => {
     }
   }, [id, user]);
 
-  const handleHire = async () => {
+  const handleHire = () => {
     if (!user) {
       alert('Please login to hire workers');
       return;
@@ -66,19 +67,8 @@ const WorkerDetail = () => {
       alert('Only customers can hire workers');
       return;
     }
-
-    if (sendingHireRequest) return;
-    setSendingHireRequest(true);
-    try {
-      await axios.post(`/api/workers/${id}/hire-request`);
-      setMessage('Direct hire request sent successfully!');
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      console.error('Error sending hire request:', error);
-      alert(error.response?.data?.message || 'Failed to send hire request');
-    } finally {
-      setSendingHireRequest(false);
-    }
+    
+    setHireModalOpen(true);
   };
 
   const handleApplyForJob = async (jobId) => {
@@ -148,10 +138,10 @@ const WorkerDetail = () => {
             
             <div className="profile-info">
               <h1>{workerUser.name}</h1>
-              <p className="location"><span className="icon">📍</span> {workerUser.location}</p>
+              <p className="location"><span className="icon">📍</span> {workerUser.location || 'Location not provided'}</p>
               <div className="stats align-center-gap">
-                <span className="rating stat-pill">⭐ {rating.toFixed(1)} Rating</span>
-                <span className="jobs stat-pill">💼 {completedJobs} Jobs</span>
+                <span className="rating stat-pill">⭐ {Number(rating || 0).toFixed(1)} Rating</span>
+                <span className="jobs stat-pill">💼 {completedJobs || 0} Jobs</span>
                 <span className={`availability stat-pill ${availability}`}>
                   {availability === 'available' ? '✅ Available' : '⏳ Busy'}
                 </span>
@@ -163,9 +153,12 @@ const WorkerDetail = () => {
             <div className="section glass-subpanel">
               <h2 className="section-heading">Skills</h2>
               <div className="skills flex-wrap-gap">
-                {skills.map((skill, index) => (
+                {(skills || []).map((skill, index) => (
                   <span key={index} className="skill-tag">{skill}</span>
                 ))}
+                {(!skills || skills.length === 0) && (
+                  <span className="text-muted">No skills listed</span>
+                )}
               </div>
             </div>
 
@@ -198,12 +191,12 @@ const WorkerDetail = () => {
             )}
 
             {/* REVIEWS SECTION */}
-            <div className="section glass-subpanel full-width" style={{ marginTop: '20px' }}>
+            <div className="section glass-subpanel full-width reviews-section">
               <h2 className="section-heading">Reviews ({reviews.length})</h2>
               {reviews.length > 0 ? (
                 <div className="reviews-list list-gap">
                   {reviews.map(review => (
-                    <div key={review._id} className="review-card border-top pt-16">
+                    <div key={review._id} className="review-card">
                       <div className="flex-between align-center mb-10">
                         <div className="align-center-gap">
                            <img 
@@ -229,15 +222,15 @@ const WorkerDetail = () => {
 
           {user && user.role === 'customer' && (
             <div className="hire-section align-center" style={{ marginTop: '30px' }}>
-              <button onClick={handleHire} className="btn-primary hire-btn giant-btn" disabled={sendingHireRequest}>
-                {sendingHireRequest ? 'Sending Request...' : `Hire ${workerUser.name.split(' ')[0]} Now`}
+              <button onClick={handleHire} className="btn-primary hire-btn giant-btn" style={{ background: '#10B981', borderColor: '#10B981', color: 'white' }}>
+                Hire {workerUser.name.split(' ')[0]} Now
               </button>
             </div>
           )}
 
           {user && user.role === 'worker' && ((user.id || user._id) === (worker.user?._id || worker.user?.id)) && recommendedJobs.length > 0 && (
             <div className="recommended-jobs-section glass-subpanel full-width">
-              <h2 className="section-heading" style={{ marginBottom: '20px' }}>Jobs You Might Be Interested In</h2>
+              <h2 className="section-heading recommended-title">Jobs You Might Be Interested In</h2>
               <div className="recommended-jobs list-gap">
                 {recommendedJobs.map(job => (
                   <motion.div 
@@ -245,16 +238,16 @@ const WorkerDetail = () => {
                     className="job-card glass-panel"
                     whileHover={{ y: -3 }}
                   >
-                    <div className="flex-between">
-                      <h3>{job.title}</h3>
+                    <div className="flex-between align-start">
+                      <h3 className="job-title">{job.title}</h3>
                       <span className="job-budget font-bold text-green">₹{job.budget}</span>
                     </div>
                     
                     <p className="job-location text-muted" style={{ margin: '8px 0' }}><span className="icon">📍</span> {job.location}</p>
-                    <p className="job-description text-body">{job.description.substring(0, 100)}...</p>
+                    <p className="job-description text-body">{(job.description || '').substring(0, 100)}...</p>
                     
                     <div className="job-details flex-wrap-gap" style={{ margin: '16px 0' }}>
-                      {job.requiredSkills.map(skill => (
+                      {(job.requiredSkills || []).map(skill => (
                          <span key={skill} className="skill-tag text-xs">{skill}</span>
                       ))}
                     </div>
@@ -302,6 +295,17 @@ const WorkerDetail = () => {
           )}
         </div>
       </div>
+
+      <DirectHireModal
+        isOpen={hireModalOpen}
+        onClose={() => setHireModalOpen(false)}
+        worker={worker}
+        onJobRequested={() => {
+          setHireModalOpen(false);
+          // Redirecting to dashboard or showing a success toast is handled by modal and app flow
+          window.location.href = '/dashboard';
+        }}
+      />
     </motion.div>
   );
 };

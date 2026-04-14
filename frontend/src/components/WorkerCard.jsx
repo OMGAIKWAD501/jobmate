@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import './WorkerCard.css';
 
 const WorkerCard = ({ worker, index = 0 }) => {
-  const { user, skills, rating, hourlyRate, completedJobs } = worker;
+  const { user = {}, skills = [], rating = 0, hourlyRate, completedJobs = 0 } = worker || {};
   
   return (
     <motion.div 
@@ -17,16 +17,16 @@ const WorkerCard = ({ worker, index = 0 }) => {
       <div className="worker-header">
         <div className="worker-avatar-container">
           <img 
-            src={user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`} 
-            alt={user.name} 
+            src={user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Worker')}&background=random`} 
+            alt={user.name || 'Worker'} 
             className="worker-avatar" 
           />
           {rating >= 4.8 && <div className="top-rated-badge">🔥 Top</div>}
         </div>
         <div className="worker-info">
-          <h3>{user.name}</h3>
+          <h3>{user.name || 'Worker'}</h3>
           <p className="location">
-            <span className="icon">📍</span> {user.location}
+            <span className="icon">📍</span> {user.location || 'Location unavailable'}
           </p>
         </div>
       </div>

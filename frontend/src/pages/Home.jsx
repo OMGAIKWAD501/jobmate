@@ -126,7 +126,7 @@ const Home = () => {
           {loading ? (
             <div className="workers-grid">
               {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="glass-panel" style={{ height: '350px', animation: 'pulse 1.5s infinite' }}></div>
+                <div key={i} className="glass-panel workers-skeleton"></div>
               ))}
             </div>
           ) : (
@@ -149,7 +149,7 @@ const Home = () => {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
           >
-            <Link to="/workers" className="btn-secondary" style={{ marginTop: '40px', padding: '12px 32px' }}>
+            <Link to="/workers" className="btn-secondary view-all-btn">
               View All Professionals
             </Link>
           </motion.div>

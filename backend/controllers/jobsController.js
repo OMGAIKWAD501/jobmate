@@ -144,7 +144,10 @@ exports.getJobs = async (req, res) => {
   try {
     const { status = 'open', page = 1, limit = 10, lat, lng, maxDistance = 50000 } = req.query;
     
-    let query = { status };
+    let query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
 
     if (lat && lng) {
       query.geometry = {
@@ -160,6 +163,8 @@ exports.getJobs = async (req, res) => {
 
     const jobs = await Job.find(query)
       .populate('customer', 'name location')
+      .populate('assignedWorker', 'name profilePicture')
+      .populate('applications.worker', 'name profilePicture')
       .sort(lat && lng ? undefined : { createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -430,7 +435,181 @@ exports.reviewJob = async (req, res) => {
       }
     );
 
+    // Mark job as reviewed so the button hides
+    job.isReviewed = true;
+    await job.save();
+
     res.status(201).json({ message: 'Review submitted successfully', review });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// ==========================================
+// DIRECT JOB REQUEST EXTENSIONS
+// ==========================================
+
+// Get direct requests specifically for the logged-in user
+exports.getDirectRequests = async (req, res) => {
+  try {
+    const query = { 
+      $or: [
+        { isDirectRequest: true },
+        { status: 'pending' },
+        { applications: { $size: 0 }, assignedWorker: { $exists: true, $ne: null }, status: { $ne: 'open' } }
+      ]
+    };
+    if (req.user.role === 'customer') {
+      query.customer = req.user.id;
+    } else if (req.user.role === 'worker') {
+      const worker = await Worker.findOne({ user: req.user.id });
+      if (worker) {
+        query.assignedWorker = worker.user;
+      } else {
+        query.assignedWorker = req.user.id;
+      }
+    }
+
+    const jobs = await Job.find(query)
+      .populate('customer', 'name profilePicture')
+      .populate('assignedWorker', 'name profilePicture')
+      .sort({ createdAt: -1 });
+
+    res.json({ jobs });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Create a direct job request targeting a specific worker
+exports.createDirectRequest = async (req, res) => {
+  try {
+    const { title, description, workerId, location, budget } = req.body;
+    if (!title || !description || !workerId || !location) {
+      return res.status(400).json({ message: 'Title, description, workerId, and location are required' });
+    }
+
+    const job = new Job({
+      title,
+      description,
+      customer: req.user.id,
+      assignedWorker: workerId, // directly assigning
+      location,
+      budget,
+      status: 'pending',
+      isDirectRequest: true,
+      requiredSkills: []
+    });
+
+    await job.save();
+
+    // Create Notification and Emit
+    const notif = await Notification.create({
+      recipient: workerId,
+      type: 'direct_hire_request',
+      title: 'New Direct Job Request',
+      message: `You have received a direct job request: ${title}`,
+      link: '/dashboard'
+    });
+    socketService.emitNotification(workerId, notif);
+
+    res.status(201).json({ message: 'Direct request sent', job });
+  } catch (error) {
+    console.error('CREATE DIRECT REQUEST ERROR:', error);
+    res.status(500).json({ message: 'Server error', error: error.message, stack: error.stack });
+  }
+};
+
+// Worker accepts direct request
+exports.acceptDirectRequest = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job || !job.isDirectRequest) return res.status(404).json({ message: 'Direct job not found' });
+    
+    if (job.assignedWorker.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to accept this job' });
+    }
+
+    if (job.status !== 'pending') return res.status(400).json({ message: 'Job is not pending' });
+
+    job.status = 'accepted';
+    await job.save();
+
+    const notif = await Notification.create({
+      recipient: job.customer,
+      type: 'application_accepted',
+      title: 'Job Accepted',
+      message: `Your direct request for ${job.title} was accepted!`,
+      link: '/dashboard'
+    });
+    socketService.emitNotification(job.customer, notif);
+
+    res.json({ message: 'Job accepted', job });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Customer shares location
+exports.shareLocationDirectRequest = async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+    if (lat === undefined || lng === undefined) return res.status(400).json({ message: 'Coordinates required' });
+
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    
+    if (job.customer.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Only customer can share location for this job' });
+    }
+
+    if (job.status !== 'accepted' && job.status !== 'assigned') return res.status(400).json({ message: 'Job must be accepted/assigned to share location' });
+
+    job.geometry = {
+      type: 'Point',
+      coordinates: [Number(lng), Number(lat)]
+    };
+    await job.save();
+
+    const notif = await Notification.create({
+      recipient: job.assignedWorker,
+      type: 'location_shared',
+      title: 'Location Shared',
+      message: `Customer has shared location for: ${job.title}`,
+      link: '/dashboard'
+    });
+    socketService.emitNotification(job.assignedWorker, notif);
+
+    res.json({ message: 'Location shared', job });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Start Job (Change to In Progress)
+exports.startJob = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    
+    // Either worker or customer can start
+    if (job.customer.toString() !== req.user.id && job.assignedWorker.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (job.status !== 'accepted' && job.status !== 'assigned') {
+      return res.status(400).json({ message: 'Job must be accepted/assigned to start' });
+    }
+    
+    if (!job.geometry || !job.geometry.coordinates || job.geometry.coordinates.length < 2) {
+      return res.status(400).json({ message: 'Location must be shared before starting' });
+    }
+
+    job.status = 'in-progress';
+    job.startedAt = new Date();
+    await job.save();
+
+    res.json({ message: 'Job started', job });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

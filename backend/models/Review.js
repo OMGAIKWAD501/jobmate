@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema({
-  reviewer: {
+  customer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  reviewee: {
+  worker: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
@@ -34,6 +34,6 @@ const reviewSchema = new mongoose.Schema({
 });
 
 // Prevent duplicate reviews for the same job
-reviewSchema.index({ reviewer: 1, job: 1 }, { unique: true });
+reviewSchema.index({ customer: 1, job: 1 }, { unique: true });
 
 module.exports = mongoose.model('Review', reviewSchema);

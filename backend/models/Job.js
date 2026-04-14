@@ -17,8 +17,7 @@ const jobSchema = new mongoose.Schema({
     required: true
   },
   requiredSkills: [{
-    type: String,
-    required: true
+    type: String
   }],
   location: {
     type: String,
@@ -45,9 +44,14 @@ const jobSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'assigned', 'completed', 'cancelled'],
+    enum: ['pending', 'open', 'accepted', 'assigned', 'in-progress', 'completed', 'cancelled'],
     default: 'open'
   },
+  isDirectRequest: {
+    type: Boolean,
+    default: false
+  },
+  startedAt: Date,
   assignedWorker: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -72,7 +76,11 @@ const jobSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  completedAt: Date
+  completedAt: Date,
+  isReviewed: {
+    type: Boolean,
+    default: false
+  }
 });
 
 // Index for search

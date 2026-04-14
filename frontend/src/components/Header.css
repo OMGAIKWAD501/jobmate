@@ -1,67 +1,69 @@
 .header {
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
-  z-index: 100;
-  transition: all 0.3s ease;
+  z-index: 120;
+  transition: all 0.2s ease;
 }
 
 .header-scrolled {
-  background: rgba(15, 23, 42, 0.95);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .header .container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 24px;
+  min-height: 74px;
+  gap: 20px;
 }
 
 .logo {
   text-decoration: none;
-  font-family: var(--font-heading);
-  color: var(--text-active);
+  color: #111827;
 }
 
 .logo h1 {
-  font-size: 24px;
+  font-size: 1.35rem;
   font-weight: 800;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
-  background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .logo-icon {
-  -webkit-text-fill-color: initial;
-  font-size: 22px;
+  -webkit-text-fill-color: initial !important;
+  font-size: 1.1rem;
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 22px;
 }
 
 .nav a {
   text-decoration: none;
-  color: var(--text-muted);
+  color: #374151;
   font-weight: 500;
   font-size: 15px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   position: relative;
+  padding: 8px 2px;
+  white-space: nowrap;
 }
 
 .nav a:hover, .nav a.active {
-  color: var(--text-active);
+  color: #111827;
+  font-weight: 600;
 }
 
 .nav a::after {
@@ -71,8 +73,8 @@
   left: 0;
   width: 0%;
   height: 2px;
-  background: var(--primary-color);
-  transition: width 0.3s ease;
+  background: #2563eb;
+  transition: width 0.2s ease;
   border-radius: 2px;
 }
 
@@ -84,16 +86,16 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 7px 12px;
+  background: #f8fafc;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e5e7eb;
 }
 
 .avatar {
   width: 28px;
   height: 28px;
-  background: linear-gradient(135deg, var(--primary-color), #818cf8);
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -104,7 +106,7 @@
 }
 
 .user-info {
-  color: var(--text-active);
+  color: #111827;
   font-size: 14px;
   font-weight: 500;
 }
@@ -115,26 +117,160 @@
   align-items: center;
 }
 
+.auth-link {
+  min-width: 88px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.auth-link::after {
+  display: none !important;
+}
+
+.auth-login {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  border: 1px solid #bfc8d6;
+  color: #1f2937;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.auth-login:hover {
+  border-color: #8ea0bc;
+  background: linear-gradient(180deg, #ffffff 0%, #eaf2ff 100%);
+  color: #111827;
+  transform: scale(1.03);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.14);
+}
+
+.auth-register {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  border: 1px solid transparent;
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
+}
+
+.auth-register:hover {
+  color: #ffffff;
+  transform: scale(1.03);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.34);
+}
+
+.auth-buttons .btn-secondary,
+.auth-buttons .btn-primary {
+  min-width: 88px;
+  height: 42px;
+  padding: 0 18px !important;
+  border-radius: 14px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+}
+
+.auth-buttons .btn-secondary {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+  border: 1px solid #bfc8d6 !important;
+  color: #1f2937 !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08) !important;
+}
+
+.auth-buttons .btn-secondary:hover {
+  border-color: #8ea0bc !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eaf2ff 100%) !important;
+  color: #111827 !important;
+  transform: scale(1.03);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.14) !important;
+}
+
+.auth-buttons .btn-primary {
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28) !important;
+}
+
 .logout-btn {
   padding: 8px 16px !important;
   font-size: 14px !important;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-menu-btn {
+  display: none;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .header .container {
-    padding: 1rem;
     flex-wrap: wrap;
+    min-height: auto;
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
-  
+
+  .mobile-menu-btn {
+    display: inline-flex;
+  }
+
   .nav {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
     width: 100%;
-    margin-top: 10px;
-    justify-content: center;
+    margin-top: 8px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 10px;
+    gap: 10px;
+  }
+
+  .nav a {
+    font-size: 14px;
+  }
+
+  .nav.open {
+    display: flex;
+  }
+
+  .header-actions {
     flex-wrap: wrap;
-    gap: 15px;
   }
-  
+
   .user-profile-btn {
-    display: none; /* Hide on mobile to save space */
+    display: none;
   }
-}
+
+  .auth-buttons {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .auth-buttons .btn-secondary,
+  .auth-buttons .btn-primary {
+    min-width: 82px;
+    height: 40px;
+    padding: 0 14px !important;
+    font-size: 14px !important;
+  }
+
+  .auth-link {
+    min-width: 82px;
+    height: 40px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+}

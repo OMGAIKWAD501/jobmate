@@ -21,13 +21,15 @@ const ReviewModal = ({ isOpen, onClose, job, onReviewSubmitted }) => {
     
     setLoading(true);
     try {
-      // First complete the job
-      await axios.put(`/api/jobs/${job._id}/complete`);
+      // First complete the job if not already
+      if (job.status !== 'completed') {
+        await axios.put(`/api/jobs/${job._id}/complete`);
+      }
       
       // Then submit the review
       await axios.post(`/api/jobs/${job._id}/review`, { rating, comment });
       
-      toast.success('Job completed and review submitted!');
+      toast.success(job.status === 'completed' ? 'Review submitted!' : 'Job completed and review submitted!');
       onReviewSubmitted(); // Refresh parent state
       onClose();
     } catch (error) {
@@ -60,7 +62,7 @@ const ReviewModal = ({ isOpen, onClose, job, onReviewSubmitted }) => {
           style={{ width: '90%', maxWidth: '500px', padding: '30px', position: 'relative' }}
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 style={{ marginBottom: '5px' }}>Complete & Review</h2>
+          <h2 style={{ marginBottom: '5px' }}>{job.status === 'completed' ? 'Leave a Review' : 'Complete & Review'}</h2>
           <p className="text-muted" style={{ marginBottom: '20px' }}>
             Rate your experience with this worker to help build the community.
           </p>

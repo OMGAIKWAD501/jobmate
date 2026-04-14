@@ -1,5 +1,5 @@
 const express = require('express');
-const { createJob, getJobs, getJobById, applyForJob, acceptApplication, completeJob, getRecommendedJobs, updateJob, reviewJob, deleteJob, getMyAppliedJobs } = require('../controllers/jobsController');
+const { createJob, getJobs, getJobById, applyForJob, acceptApplication, completeJob, getRecommendedJobs, updateJob, reviewJob, deleteJob, getMyAppliedJobs, createDirectRequest, acceptDirectRequest, shareLocationDirectRequest, startJob, getDirectRequests } = require('../controllers/jobsController');
 const { auth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -7,7 +7,13 @@ const router = express.Router();
 // Public routes
 router.get('/', getJobs);
 router.get('/my-applications', auth, requireRole(['worker']), getMyAppliedJobs);
-router.get('/:id', getJobById);
+
+// Direct request routes MUST BE BEFORE /:id
+router.get('/direct-requests', auth, getDirectRequests);
+router.post('/direct-request', auth, requireRole(['customer']), createDirectRequest);
+router.put('/:id/direct-accept', auth, requireRole(['worker']), acceptDirectRequest);
+router.put('/:id/share-location', auth, requireRole(['customer']), shareLocationDirectRequest);
+router.put('/:id/start', auth, startJob); // Either can start
 
 // Customer-only routes
 router.post('/', auth, requireRole(['customer']), createJob);
@@ -20,5 +26,8 @@ router.post('/:id/review', auth, requireRole(['customer']), reviewJob);
 // Worker-only routes
 router.post('/:id/apply', auth, requireRole(['worker']), applyForJob);
 router.get('/recommended/for-worker', auth, requireRole(['worker']), getRecommendedJobs);
+
+// Fallback exact ID getter must be last to prevent shadowing
+router.get('/:id', getJobById);
 
 module.exports = router;

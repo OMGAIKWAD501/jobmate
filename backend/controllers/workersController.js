@@ -274,3 +274,36 @@ exports.sendDirectHireRequest = async (req, res) => {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// Get reviewable jobs for a customer and worker
+exports.getReviewableJobs = async (req, res) => {
+  try {
+    const Job = require('../models/Job');
+    const Review = require('../models/Review');
+    const workerUserId = req.params.id;
+    
+    // Find assigned/completed jobs
+    const jobs = await Job.find({
+      customer: req.user.id,
+      assignedWorker: workerUserId,
+      status: { $in: ['assigned', 'completed'] }
+    });
+
+    if (jobs.length === 0) {
+      return res.json([]);
+    }
+
+    // Find existing reviews
+    const reviewedJobs = await Review.find({ 
+      customer: req.user.id, 
+      worker: workerUserId 
+    }).select('job');
+    
+    const reviewedSet = new Set(reviewedJobs.map(r => r.job.toString()));
+    const reviewable = jobs.filter(j => !reviewedSet.has(j._id.toString()));
+    
+    res.json(reviewable);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

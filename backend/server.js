@@ -21,7 +21,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
+app.set("trust proxy", 1);
 // Session middleware
 app.use(
   session({
@@ -38,7 +38,7 @@ app.use(
     cookie: {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
       httpOnly: true,
-      secure: false, // set true in production (HTTPS)
+      secure: process.env.NODE_ENV === "production", // set true in production (HTTPS)
     },
   })
 );
@@ -59,6 +59,10 @@ app.use((req, res, next) => {
   }
 
   return limiter(req, res, next);
+});
+
+app.get("/", (req, res) => {
+  res.send("JobMate Backend Running 🚀");
 });
 
 // Routes

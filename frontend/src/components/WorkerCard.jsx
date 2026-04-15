@@ -4,11 +4,15 @@ import { motion } from 'framer-motion';
 import './WorkerCard.css';
 
 const WorkerCard = ({ worker, index = 0 }) => {
-  const { user = {}, rating = 0, hourlyRate, completedJobs = 0 } = worker || {};
-  const skills = Array.isArray(worker?.skills) ? worker.skills : [];
-  
+  const safeWorker = worker || {};
+  const user = safeWorker.user || {};
+  const rating = Number(safeWorker.rating) || 0;
+  const hourlyRate = safeWorker.hourlyRate;
+  const completedJobs = safeWorker.completedJobs || 0;
+  const skills = Array.isArray(safeWorker.skills) ? safeWorker.skills : [];
+
   return (
-    <motion.div 
+    <motion.div
       className="worker-card glass-panel"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -17,31 +21,31 @@ const WorkerCard = ({ worker, index = 0 }) => {
     >
       <div className="worker-header">
         <div className="worker-avatar-container">
-          <img 
-            src={user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'Worker')}&background=random`} 
-            alt={user.name || 'Worker'} 
-            className="worker-avatar" 
+          <img
+            src={user?.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Worker')}&background=random`}
+            alt={user?.name || 'Worker'}
+            className="worker-avatar"
           />
           {rating >= 4.8 && <div className="top-rated-badge">🔥 Top</div>}
         </div>
         <div className="worker-info">
-          <h3>{user.name || 'Worker'}</h3>
+          <h3>{user?.name || 'Worker'}</h3>
           <p className="location">
-            <span className="icon">📍</span> {user.location || 'Location unavailable'}
+            <span className="icon">📍</span> {user?.location || 'Location unavailable'}
           </p>
         </div>
       </div>
-      
+
       <div className="worker-details">
         <div className="skills">
-          {skills.slice(0, 3).map((skill, idx) => (
+          {Array.isArray(skills) && skills.slice(0, 3).map((skill, idx) => (
             <span key={idx} className="skill-tag">{skill}</span>
           ))}
-          {skills.length > 3 && <span className="skill-more">+{skills.length - 3}</span>}
+          {Array.isArray(skills) && skills.length > 3 && <span className="skill-more">+{skills.length - 3}</span>}
         </div>
-        
+
         <div className="stats-divider"></div>
-        
+
         <div className="stats">
           <div className="stat">
             <span className="stat-value rating">⭐ {rating.toFixed(1)}</span>
@@ -59,10 +63,16 @@ const WorkerCard = ({ worker, index = 0 }) => {
           )}
         </div>
       </div>
-      
-      <Link to={`/workers/${user._id}`} className="btn-primary view-profile">
-        View Profile
-      </Link>
+
+      {user?._id ? (
+        <Link to={`/workers/${user._id}`} className="btn-primary view-profile">
+          View Profile
+        </Link>
+      ) : (
+        <span className="btn-primary view-profile" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+          Profile Unavailable
+        </span>
+      )}
     </motion.div>
   );
 };

@@ -18,7 +18,10 @@ socketService.init(server);
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: "https://jobmate-frontend-pi.vercel.app/", // 🔥 your frontend URL
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.set("trust proxy", 1);
@@ -36,10 +39,11 @@ app.use(
       touchAfter: 24 * 3600, // reduces DB writes (1 day)
     }),
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24, // 1 day
+      maxAge: 1000 * 60 * 60 * 24,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // set true in production (HTTPS)
-    },
+      secure: true,          // 🔥 ALWAYS true for Vercel/Render
+      sameSite: "none"       // 🔥 VERY IMPORTANT
+    },        
   })
 );
 

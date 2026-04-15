@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import './WorkerCard.css';
 
 const WorkerCard = ({ worker, index = 0 }) => {
-  const { user = {}, skills = [], rating = 0, hourlyRate, completedJobs = 0 } = worker || {};
+  const { user = {}, rating = 0, hourlyRate, completedJobs = 0 } = worker || {};
+  const skills = Array.isArray(worker?.skills) ? worker.skills : [];
   
   return (
     <motion.div 

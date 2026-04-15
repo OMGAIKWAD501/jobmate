@@ -40,8 +40,10 @@ const NotificationsDropdown = () => {
   const fetchNotifications = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/notifications`);
-      setNotifications(response.data.data);
-      setUnreadCount(response.data.data.filter((n) => !n.read).length);
+      console.log('API Response (notifications):', response.data);
+      const fetchedNotifs = Array.isArray(response.data.data) ? response.data.data : [];
+      setNotifications(fetchedNotifs);
+      setUnreadCount(fetchedNotifs.filter((n) => !n.read).length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
@@ -52,7 +54,7 @@ const NotificationsDropdown = () => {
     try {
       await axios.put(`${API_URL}/api/notifications/${id}/read`);
       setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, read: true } : n))
+        (Array.isArray(prev) ? prev : []).map((n) => (n._id === id ? { ...n, read: true } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
@@ -65,7 +67,7 @@ const NotificationsDropdown = () => {
     try {
       await axios.put(`${API_URL}/api/notifications/read-all`);
       setNotifications((prev) =>
-        prev.map((n) => ({ ...n, read: true }))
+        (Array.isArray(prev) ? prev : []).map((n) => ({ ...n, read: true }))
       );
       setUnreadCount(0);
     } catch (error) {
@@ -86,7 +88,7 @@ const NotificationsDropdown = () => {
     try {
       const response = await axios.put(`${API_URL}/api/notifications/${notif._id}/accept-hire`);
       setNotifications((prev) =>
-        prev.map((n) =>
+        (Array.isArray(prev) ? prev : []).map((n) =>
           n._id === notif._id
             ? { ...n, actionStatus: 'accepted', read: true }
             : n
@@ -143,10 +145,10 @@ const NotificationsDropdown = () => {
             </div>
 
             <div className="notifications-list">
-              {notifications.length === 0 ? (
+              {(!Array.isArray(notifications) || notifications.length === 0) ? (
                 <div className="empty-state">No notifications yet.</div>
               ) : (
-                notifications.map((notif) => (
+                (Array.isArray(notifications) ? notifications : []).map((notif) => (
                   <div
                     key={notif._id}
                     className={`notification-item ${notif.read ? 'read' : 'unread'}`}

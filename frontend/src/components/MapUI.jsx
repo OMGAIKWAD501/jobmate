@@ -34,7 +34,7 @@ const MapUI = ({ userLocation, workers = [], jobs = [] }) => {
           </Marker>
         )}
 
-        {workers.map((worker) => {
+        {(Array.isArray(workers) ? workers : []).map((worker) => {
           const coords = worker?.location?.coordinates;
           if (!Array.isArray(coords) || coords.length !== 2) return null;
 
@@ -49,7 +49,7 @@ const MapUI = ({ userLocation, workers = [], jobs = [] }) => {
           );
         })}
 
-        {jobs.map((job) => {
+        {(Array.isArray(jobs) ? jobs : []).map((job) => {
           const coords = job?.geometry?.coordinates;
           if (!Array.isArray(coords) || coords.length !== 2) return null;
 

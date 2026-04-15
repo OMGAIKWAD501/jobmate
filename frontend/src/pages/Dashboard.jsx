@@ -73,8 +73,10 @@ const Dashboard = () => {
     try {
       if (user.role === 'customer') {
         const response = await axios.get(`${API_URL}/api/jobs?status=all`);
+        console.log('API Response (customer jobs):', response.data);
+        const fetchedJobs = Array.isArray(response.data.jobs) ? response.data.jobs : [];
         const customerId = user._id || user.id;
-        const myJobs = response.data.jobs.filter(j => {
+        const myJobs = fetchedJobs.filter(j => {
           const isOwnJob = (j.customer?._id || j.customer) === customerId;
           const isDirectRequest = j.isDirectRequest === true || j.status === 'pending' || (j.assignedWorker && (!j.applications || j.applications.length === 0) && j.status !== 'open');
           return isOwnJob && !isDirectRequest;
@@ -91,9 +93,12 @@ const Dashboard = () => {
     try {
       if (user.role === 'worker') {
         const response = await axios.get(`${API_URL}/api/jobs?status=all`);
+        console.log('API Response (worker applications):', response.data);
+        const fetchedJobs = Array.isArray(response.data.jobs) ? response.data.jobs : [];
         const userApplications = [];
-        response.data.jobs.forEach(job => {
-          job.applications.forEach(app => {
+        fetchedJobs.forEach(job => {
+          if (Array.isArray(job.applications)) {
+            job.applications.forEach(app => {
             const workerId = typeof app.worker === 'object' ? String(app.worker._id) : String(app.worker);
             const currentUserId = String(user.id || user._id);
             if (workerId === currentUserId) {
@@ -118,7 +123,8 @@ const Dashboard = () => {
     if (!user) return;
     try {
       const response = await axios.get(`${API_URL}/api/jobs/direct-requests`);
-      setDirectRequests(response.data.jobs);
+      console.log('API Response (direct requests):', response.data);
+      setDirectRequests(Array.isArray(response.data.jobs) ? response.data.jobs : []);
     } catch (error) {
       console.error('Error fetching direct requests:', error);
     }
@@ -263,7 +269,7 @@ const Dashboard = () => {
 
       await axios.post(`${API_URL}/api/jobs`, jobData);
       const response = await axios.get(`${API_URL}/api/jobs`);
-      setJobs(response.data.jobs);
+      setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
 
       setJobForm({
         title: '', description: '', requiredSkills: '',
@@ -374,7 +380,7 @@ const Dashboard = () => {
 
       await axios.put(`${API_URL}/api/jobs/${editingJobId}`, jobData);
       const response = await axios.get(`${API_URL}/api/jobs`);
-      setJobs(response.data.jobs);
+      setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
 
       setEditingJobId(null);
       setEditJobCoordinates(null);
@@ -694,7 +700,7 @@ const Dashboard = () => {
                       <>
                         <p style={{ marginTop: '10px' }}><strong>Skills:</strong></p>
                         <div className="flex-wrap-gap mb-10">
-                          {(profile.workerDetails.skills || []).map(s => <span key={s} className="skill-tag">{s}</span>)}
+                          {(Array.isArray(profile.workerDetails.skills) ? profile.workerDetails.skills : []).map(s => <span key={s} className="skill-tag">{s}</span>)}
                         </div>
                         <p><strong>Experience:</strong> {profile.workerDetails.experience} years</p>
                         {profile.workerDetails.hourlyRate && <p><strong>Hourly Rate:</strong> <span className="text-green">₹{profile.workerDetails.hourlyRate}</span></p>}
@@ -788,14 +794,14 @@ const Dashboard = () => {
                 <h2>Direct Job Requests</h2>
               </div>
               <div className="list-gap mt-20" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-                {directRequests.map(job => (
+                {Array.isArray(directRequests) ? directRequests.map(job => (
                   <JobJourneyCard 
                     key={job._id} 
                     job={job} 
                     onUpdate={() => axios.get(`${API_URL}/api/jobs/direct-requests`).then(res => setDirectRequests(res.data.jobs))} 
                     onOpenReview={() => handleOpenReviewModal(job)}
                   />
-                ))}
+                )) : <p className="text-muted">No direct requests</p>}
               </div>
               </motion.div>
             )}
@@ -864,7 +870,7 @@ const Dashboard = () => {
               )}
 
               <div className="jobs-list list-gap mt-20">
-                {jobs.map((job, idx) => (
+                {Array.isArray(jobs) ? jobs.map((job, idx) => (
                   <motion.div key={job._id} className="job-card-wrapper" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
                     {editingJobId === job._id ? (
                       <form onSubmit={handleUpdateJob} className="job-form glass-subpanel p-20 mb-20">
@@ -935,7 +941,7 @@ const Dashboard = () => {
                           <div className="applications glass-subpanel mt-20">
                             <h4>Applications ({job.applications.length})</h4>
                             <div className="list-gap mt-10">
-                              {job.applications.map(app => (
+                              {Array.isArray(job.applications) ? job.applications.map(app => (
                                 <div key={app._id} className="application border-left-accent p-10">
                                   <p className="text-active"><strong>Worker:</strong> {app.worker?.name || 'Worker'}</p>
                                   <p className="text-body my-10 italic">"{app.message}"</p>
@@ -946,7 +952,7 @@ const Dashboard = () => {
                                     </button>
                                   )}
                                 </div>
-                              ))}
+                              )) : <p className="text-muted">No applications</p>}
                             </div>
                           </div>
                         )}
@@ -957,7 +963,7 @@ const Dashboard = () => {
                       </div>
                     )}
                   </motion.div>
-                ))}
+                )) : <p className="text-muted">No jobs available</p>}
               </div>
               <div className="pagination">
                 {/* Add pagination logic if required later */}
@@ -969,7 +975,7 @@ const Dashboard = () => {
               <motion.div className="applications-section glass-panel" layout>
               <h2 className="section-header">My Applications</h2>
               <div className="applications-list list-gap mt-20">
-                {applications.map((app, idx) => (
+                {Array.isArray(applications) ? applications.map((app, idx) => (
                   <motion.div
                     key={app._id}
                     className="application-card glass-subpanel"
@@ -985,8 +991,8 @@ const Dashboard = () => {
                       <span className="text-xs text-muted">Applied: {new Date(app.appliedAt).toLocaleDateString()}</span>
                     </div>
                   </motion.div>
-                ))}
-                {applications.length === 0 && <p className="text-muted italic">You haven't applied to any jobs yet.</p>}
+                )) : null}
+                {(!Array.isArray(applications) || applications.length === 0) && <p className="text-muted italic">You haven't applied to any jobs yet.</p>}
               </div>
               </motion.div>
             )}

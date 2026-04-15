@@ -29,7 +29,8 @@ const WorkerDetail = () => {
         // Wait to fetch reviews using the actual user _id associated with the worker
         const workerUserId = workerRes.data.user?._id || workerRes.data.user?.id;
         const reviewsRes = await axios.get(`${API_URL}/api/workers/${workerUserId}/reviews`);
-        setReviews(reviewsRes.data);
+        console.log('API Response (reviews):', reviewsRes.data);
+        setReviews(Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
       } catch (error) {
         console.error('Error fetching worker details:', error);
       } finally {
@@ -45,7 +46,8 @@ const WorkerDetail = () => {
       if (user && user.role === 'worker' && currentUserId === workerUserId) {
         try {
           const response = await axios.get(`${API_URL}/api/jobs/recommended/for-worker`);
-          setRecommendedJobs(response.data.jobs);
+          console.log('API Response (recommended jobs):', response.data);
+          setRecommendedJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
         } catch (error) {
           console.error('Error fetching recommended jobs:', error);
         }
@@ -154,7 +156,7 @@ const WorkerDetail = () => {
             <div className="section glass-subpanel">
               <h2 className="section-heading">Skills</h2>
               <div className="skills flex-wrap-gap">
-                {(skills || []).map((skill, index) => (
+                {(Array.isArray(skills) ? skills : []).map((skill, index) => (
                   <span key={index} className="skill-tag">{skill}</span>
                 ))}
                 {(!skills || skills.length === 0) && (
@@ -196,7 +198,7 @@ const WorkerDetail = () => {
               <h2 className="section-heading">Reviews ({reviews.length})</h2>
               {reviews.length > 0 ? (
                 <div className="reviews-list list-gap">
-                  {reviews.map(review => (
+                  {Array.isArray(reviews) ? reviews.map(review => (
                     <div key={review._id} className="review-card">
                       <div className="flex-between align-center mb-10">
                         <div className="align-center-gap">
@@ -212,7 +214,7 @@ const WorkerDetail = () => {
                       <p className="text-muted text-xs mb-10">For job: {review.job?.title || 'Unknown Job'} • {new Date(review.createdAt).toLocaleDateString()}</p>
                       <p className="text-body italic m-0">"{review.comment}"</p>
                     </div>
-                  ))}
+                  )) : <p className="text-muted">No reviews available</p>}
                 </div>
               ) : (
                 <p className="text-muted italic">This worker has no reviews yet.</p>
@@ -233,7 +235,7 @@ const WorkerDetail = () => {
             <div className="recommended-jobs-section glass-subpanel full-width">
               <h2 className="section-heading recommended-title">Jobs You Might Be Interested In</h2>
               <div className="recommended-jobs list-gap">
-                {recommendedJobs.map(job => (
+                {Array.isArray(recommendedJobs) ? recommendedJobs.map(job => (
                   <motion.div 
                     key={job._id} 
                     className="job-card glass-panel"
@@ -248,7 +250,7 @@ const WorkerDetail = () => {
                     <p className="job-description text-body">{(job.description || '').substring(0, 100)}...</p>
                     
                     <div className="job-details flex-wrap-gap" style={{ margin: '16px 0' }}>
-                      {(job.requiredSkills || []).map(skill => (
+                      {(Array.isArray(job.requiredSkills) ? job.requiredSkills : []).map(skill => (
                          <span key={skill} className="skill-tag text-xs">{skill}</span>
                       ))}
                     </div>
@@ -280,7 +282,7 @@ const WorkerDetail = () => {
                       )}
                     </div>
                   </motion.div>
-                ))}
+                )) : <p className="text-muted">No typical recommended jobs available</p>}
               </div>
             </div>
           )}

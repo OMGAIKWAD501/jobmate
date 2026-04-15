@@ -17,7 +17,8 @@ const Home = () => {
     const fetchTopWorkers = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/workers/top?limit=20`);
-        setTopWorkers(response.data);
+        console.log('API Response (top workers):', response.data);
+        setTopWorkers(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
         console.error('Error fetching top workers:', error);
       } finally {
@@ -138,9 +139,9 @@ const Home = () => {
               whileInView="visible"
               viewport={{ once: true }}
             >
-              {topWorkers.map((worker, index) => (
+              {Array.isArray(topWorkers) ? topWorkers.map((worker, index) => (
                 <WorkerCard key={worker._id} worker={worker} index={index} />
-              ))}
+              )) : <p className="text-muted" style={{ gridColumn: '1 / -1', textAlign: 'center' }}>No top workers found.</p>}
             </motion.div>
           )}
           

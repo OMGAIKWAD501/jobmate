@@ -40,7 +40,8 @@ const Jobs = () => {
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/api/jobs`);
-      setJobs(response.data.jobs);
+      console.log('API Response (jobs):', response.data);
+      setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
       setInfoMessage('');
       setEffectiveRadiusKm(null);
     } catch (err) {
@@ -80,7 +81,7 @@ const Jobs = () => {
               limit: 20
             }
           });
-          const jobsFromRadius = response.data.jobs || [];
+          const jobsFromRadius = Array.isArray(response.data.jobs) ? response.data.jobs : [];
           if (jobsFromRadius.length > 0) {
             nearbyJobs = jobsFromRadius;
             usedRadius = radius;
@@ -90,7 +91,8 @@ const Jobs = () => {
 
         if (nearbyJobs.length === 0) {
           const fallback = await axios.get(`${API_URL}/api/jobs`);
-          setJobs(fallback.data.jobs || []);
+          console.log('API Response (fallback jobs):', fallback.data);
+          setJobs(Array.isArray(fallback.data.jobs) ? fallback.data.jobs : []);
           setEffectiveRadiusKm(null);
           setInfoMessage(`No nearby jobs found within ${radiusSequence[radiusSequence.length - 1]} km. Showing latest open jobs instead.`);
         } else {
@@ -140,7 +142,7 @@ const Jobs = () => {
       alert('Application submitted successfully!');
       setAppliedJobIds((prev) => [...new Set([...prev, jobId])]);
       setJobs((prev) =>
-        prev.map((job) =>
+        (Array.isArray(prev) ? prev : []).map((job) =>
           job._id === jobId
             ? {
                 ...job,
@@ -233,7 +235,7 @@ const Jobs = () => {
                   style={{ height: '300px', animation: 'pulse 1.5s infinite' }}
                 />
               ))
-            ) : (
+            ) : Array.isArray(jobs) ? (
               jobs.map((job, idx) => (
                 <motion.div 
                   key={job._id} 
@@ -287,7 +289,7 @@ const Jobs = () => {
                   </div>
                 </motion.div>
               ))
-            )}
+            ) : <p className="text-muted" style={{ gridColumn: '1 / -1' }}>No available jobs.</p>}
           </AnimatePresence>
         </div>
       </div>

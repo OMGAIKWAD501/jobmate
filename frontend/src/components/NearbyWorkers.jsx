@@ -35,8 +35,9 @@ const NearbyWorkers = () => {
           }
         });
 
-        setWorkers(response.data.workers || []);
-        setJobs(response.data.jobs || []);
+        console.log('API Response (nearby):', response.data);
+        setWorkers(Array.isArray(response.data.workers) ? response.data.workers : []);
+        setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
       } catch (fetchError) {
         console.error('Nearby matching failed:', fetchError);
         setWorkers([]);
@@ -88,7 +89,7 @@ const NearbyWorkers = () => {
           <p className="text-muted">No nearby workers found in selected radius.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {workers.map((worker) => (
+            {(Array.isArray(workers) ? workers : []).map((worker) => (
               <motion.div
                 key={worker._id}
                 className="glass-subpanel p-12 flex-between align-center"

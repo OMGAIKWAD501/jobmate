@@ -47,7 +47,9 @@ const Workers = () => {
       });
 
       const response = await axios.get(`${API_URL}/api/workers/search?${params}`);
-      setWorkers(response.data.workers);
+      console.log('API Response (workers/search):', response.data);
+      const fetchedWorkers = response.data.workers;
+      setWorkers(Array.isArray(fetchedWorkers) ? fetchedWorkers : []);
       setPagination({
         page: response.data.currentPage,
         totalPages: response.data.totalPages,
@@ -80,7 +82,8 @@ const Workers = () => {
           }
         });
 
-        const nearbyWorkers = response.data.workers || [];
+        console.log('API Response (nearby workers):', response.data);
+        const nearbyWorkers = Array.isArray(response.data.workers) ? response.data.workers : [];
         setWorkers(nearbyWorkers);
         setPagination({
           page: 1,
@@ -185,9 +188,9 @@ const Workers = () => {
             </div>
             
             <div className="workers-grid">
-              {workers.map(worker => (
+              {Array.isArray(workers) ? workers.map(worker => (
                 <WorkerCard key={worker._id} worker={worker} />
-              ))}
+              )) : <p className="text-muted">No workers available</p>}
             </div>
 
             {pagination.totalPages > 1 && (

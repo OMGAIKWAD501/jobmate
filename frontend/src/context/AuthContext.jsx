@@ -12,14 +12,18 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ✅ VERY IMPORTANT (for session)
+  axios.defaults.withCredentials = true;
+
   useEffect(() => {
     const token = localStorage.getItem('token');
+
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Verify token and get user profile
+
       axios.get(`${API_URL}/api/auth/profile`)
-        .then(response => {
-          setUser(response.data.user);
+        .then(res => {
+          setUser(res.data.user);
         })
         .catch(() => {
           localStorage.removeItem('token');
@@ -31,36 +35,67 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // ✅ LOGIN FIXED
   const login = async (email, password) => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, { email, password });
-      const { token, user: userData } = response.data;
-      
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(userData);
-      
+      const res = await fetch(
+        `${API_URL}/api/auth/login`,
+        {
+          method: "POST",   // 🔥 FIXED
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "include",  // 🔥 REQUIRED FOR SESSION
+          body: JSON.stringify({ email, password })
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { success: false, message: data.message };
+      }
+
+      // ✅ SAVE TOKEN (IMPORTANT)
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+      }
+
+      setUser(data.user);
+
       return { success: true };
+
     } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Login failed' };
+      return { success: false, message: "Server error" };
     }
   };
 
+  // ✅ REGISTER
   const register = async (userData) => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/register`, userData);
-      const { token, user: newUser } = response.data;
-      
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      const res = await axios.post(`${API_URL}/api/auth/register`, userData);
+
+      const { token, user: newUser } = res.data;
+
+      if (token) {
+        localStorage.setItem('token', token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      }
+
       setUser(newUser);
-      
+
       return { success: true };
+
     } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Registration failed' };
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Registration failed'
+      };
     }
   };
 
+  // ✅ LOGOUT
   const logout = () => {
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];

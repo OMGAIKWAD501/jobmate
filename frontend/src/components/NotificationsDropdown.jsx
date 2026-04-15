@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import API_URL from '../config';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
 import './NotificationsDropdown.css';
@@ -38,7 +39,7 @@ const NotificationsDropdown = () => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get('/api/notifications');
+      const response = await axios.get(`${API_URL}/api/notifications`);
       setNotifications(response.data.data);
       setUnreadCount(response.data.data.filter((n) => !n.read).length);
     } catch (error) {
@@ -49,7 +50,7 @@ const NotificationsDropdown = () => {
   const handleMarkAsRead = async (id, currentReadStatus) => {
     if (currentReadStatus) return;
     try {
-      await axios.put(`/api/notifications/${id}/read`);
+      await axios.put(`${API_URL}/api/notifications/${id}/read`);
       setNotifications((prev) =>
         prev.map((n) => (n._id === id ? { ...n, read: true } : n))
       );
@@ -62,7 +63,7 @@ const NotificationsDropdown = () => {
   const handleMarkAllAsRead = async () => {
     if (unreadCount === 0) return;
     try {
-      await axios.put('/api/notifications/read-all');
+      await axios.put(`${API_URL}/api/notifications/read-all`);
       setNotifications((prev) =>
         prev.map((n) => ({ ...n, read: true }))
       );
@@ -83,7 +84,7 @@ const NotificationsDropdown = () => {
   const handleAcceptHire = async (event, notif) => {
     event.stopPropagation();
     try {
-      const response = await axios.put(`/api/notifications/${notif._id}/accept-hire`);
+      const response = await axios.put(`${API_URL}/api/notifications/${notif._id}/accept-hire`);
       setNotifications((prev) =>
         prev.map((n) =>
           n._id === notif._id

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import API_URL from '../config';
 import toast from 'react-hot-toast';
 
 const DirectHireModal = ({ isOpen, onClose, worker, onJobRequested }) => {
@@ -24,7 +25,7 @@ const DirectHireModal = ({ isOpen, onClose, worker, onJobRequested }) => {
         budget: Number(formData.budget)
       };
       
-      await axios.post('/api/jobs/direct-request', payload);
+      await axios.post(`${API_URL}/api/jobs/direct-request`, payload);
       toast.success('Direct request sent successfully!');
       onJobRequested();
       onClose();

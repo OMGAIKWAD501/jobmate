@@ -19,13 +19,12 @@ socketService.init(server);
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: "https://jobmate-frontend-pi.vercel.app/", // 🔥 your frontend URL
+  origin: ["https://jobmate-frontend-pi.vercel.app", "http://localhost:5173", "http://localhost:3000"], // 🔥 your frontend URLs
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.set("trust proxy", 1);
-// Session middleware
 app.use(
   session({
     secret: process.env.JWT_SECRET, // use strong secret from .env
@@ -41,8 +40,8 @@ app.use(
     cookie: {
       maxAge: 1000 * 60 * 60 * 24,
       httpOnly: true,
-      secure: true,          // 🔥 ALWAYS true for Vercel/Render
-      sameSite: "none"       // 🔥 VERY IMPORTANT
+      secure: process.env.NODE_ENV === 'production',   // 🔥 true for Vercel/Render, false for localhost
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // 🔥 none for cross-origin, lax for localhost
     },        
   })
 );

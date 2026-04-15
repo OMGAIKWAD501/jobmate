@@ -111,6 +111,7 @@ const Dashboard = () => {
               });
             }
           });
+          }
         });
         setApplications(userApplications);
       }

@@ -20,8 +20,21 @@ exports.register = async (req, res) => {
       await worker.save();
     }
 
+    req.session.user = {
+      id: user._id,
+      email: user.email,
+      role: user.role
+    };
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: '7d' }
+    );
+
     res.status(201).json({
       message: 'User registered successfully',
+      token,
       user
     });
 
@@ -55,7 +68,7 @@ exports.login = async (req, res) => {
     };
 
     const token = jwt.sign(
-      { id: user._id },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET || "secret",
       { expiresIn: '7d' }
     );

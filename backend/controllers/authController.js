@@ -74,9 +74,19 @@ exports.login = async (req, res) => {
 // ✅ GET PROFILE
 exports.getProfile = async (req, res) => {
   try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    let workerDetails = null;
+    if (user.role === 'worker') {
+      workerDetails = await Worker.findOne({ user: user._id });
+    }
+
     res.json({
-      message: "Profile working",
-      user: req.session.user || null
+      user,
+      workerDetails
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });

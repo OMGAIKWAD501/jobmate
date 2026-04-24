@@ -12,7 +12,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['application_received', 'application_accepted', 'job_completed', 'new_local_job', 'direct_hire_request', 'direct_hire_accepted', 'system'],
+    enum: ['application_received', 'application_accepted', 'application_rejected', 'job_completed', 'new_local_job', 'direct_hire_request', 'direct_hire_accepted', 'system'],
     required: true
   },
   title: {

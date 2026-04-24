@@ -467,6 +467,20 @@ const Dashboard = () => {
     }
   };
 
+  const handleDeclineApplication = async (jobId, applicationId) => {
+    if (!window.confirm('Are you sure you want to decline this application?')) {
+      return;
+    }
+    try {
+      await axios.put(`${API_URL}/api/jobs/${jobId}/applications/${applicationId}/decline`);
+      await fetchJobs();
+      alert('Application declined!');
+    } catch (error) {
+      console.error('Error declining application:', error);
+      alert(error.response?.data?.message || 'Error declining application');
+    }
+  };
+
   const handleOpenReviewModal = (job) => {
     setSelectedJobForReview(job);
     setReviewModalOpen(true);
@@ -948,9 +962,14 @@ const Dashboard = () => {
                                   <p className="text-body my-10 italic">"{app.message}"</p>
                                   <p className="text-sm"><strong>Status:</strong> <span className="capitalize text-muted">{app.status}</span></p>
                                   {app.status === 'pending' && (
-                                    <button onClick={() => handleAcceptApplication(job._id, app._id)} className="btn-primary mt-10 text-sm">
-                                      Accept Application
-                                    </button>
+                                    <div className="flex-gap mt-10">
+                                      <button onClick={() => handleAcceptApplication(job._id, app._id)} className="btn-primary text-sm">
+                                        Accept Application
+                                      </button>
+                                      <button onClick={() => handleDeclineApplication(job._id, app._id)} className="btn-secondary text-sm" style={{ borderColor: 'rgba(239, 68, 68, 0.3)', color: '#F87171' }}>
+                                        Decline Application
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               )) : <p className="text-muted">No applications</p>}

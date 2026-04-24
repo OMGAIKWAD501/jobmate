@@ -310,6 +310,43 @@ exports.acceptApplication = async (req, res) => {
   }
 };
 
+// Decline application
+exports.declineApplication = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+
+    if (job.customer.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const application = job.applications.id(req.params.applicationId);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    // Update application status
+    application.status = 'rejected';
+    await job.save();
+
+    // Create Notification and Emit
+    const notif = await Notification.create({
+      recipient: application.worker,
+      type: 'application_rejected',
+      title: 'Application Declined',
+      message: 'Your application was declined for: ' + job.title,
+      link: '/dashboard'
+    });
+    socketService.emitNotification(application.worker, notif);
+
+    res.json({ message: 'Application declined successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // Complete job
 exports.completeJob = async (req, res) => {
   try {

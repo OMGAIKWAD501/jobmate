@@ -1,5 +1,5 @@
 const express = require('express');
-const { createJob, getJobs, getJobById, applyForJob, acceptApplication, completeJob, getRecommendedJobs, updateJob, reviewJob, deleteJob, getMyAppliedJobs, createDirectRequest, acceptDirectRequest, shareLocationDirectRequest, startJob, getDirectRequests } = require('../controllers/jobsController');
+const { createJob, getJobs, getJobById, applyForJob, acceptApplication, declineApplication, completeJob, getRecommendedJobs, updateJob, reviewJob, deleteJob, getMyAppliedJobs, createDirectRequest, acceptDirectRequest, shareLocationDirectRequest, startJob, getDirectRequests } = require('../controllers/jobsController');
 const { auth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -20,6 +20,7 @@ router.post('/', auth, requireRole(['customer']), createJob);
 router.put('/:id', auth, requireRole(['customer']), updateJob);
 router.delete('/:id', auth, requireRole(['customer']), deleteJob);
 router.put('/:jobId/applications/:applicationId/accept', auth, requireRole(['customer']), acceptApplication);
+router.put('/:jobId/applications/:applicationId/decline', auth, requireRole(['customer']), declineApplication);
 router.put('/:id/complete', auth, completeJob);
 router.post('/:id/review', auth, requireRole(['customer']), reviewJob);
 

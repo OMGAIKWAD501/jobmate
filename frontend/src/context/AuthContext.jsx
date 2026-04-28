@@ -38,36 +38,26 @@ export const AuthProvider = ({ children }) => {
   // ✅ LOGIN FIXED
   const login = async (email, password) => {
     try {
-      const res = await fetch(
+      const res = await axios.post(
         `${API_URL}/api/auth/login`,
-        {
-          method: "POST",   // 🔥 FIXED
-          headers: {
-            "Content-Type": "application/json"
-          },
-          credentials: "include",  // 🔥 REQUIRED FOR SESSION
-          body: JSON.stringify({ email, password })
-        }
+        { email, password },
+        { withCredentials: true }
       );
 
-      const data = await res.json();
+      const data = res.data;
 
-      if (!res.ok) {
-        return { success: false, message: data.message };
-      }
-
-      // ✅ SAVE TOKEN (IMPORTANT)
       if (data.token) {
         localStorage.setItem('token', data.token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
       }
 
       setUser(data.user);
-
       return { success: true };
-
     } catch (error) {
-      return { success: false, message: "Server error" };
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Server error'
+      };
     }
   };
 

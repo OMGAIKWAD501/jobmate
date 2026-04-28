@@ -2,11 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import axios from 'axios';
 import App from './App';
+import API_URL from './config';
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
-if (apiBaseUrl) {
-  axios.defaults.baseURL = apiBaseUrl.replace(/\/+$/, '');
-}
+const apiBaseUrl = API_URL.replace(/\/+$, '');
+console.log('API:', apiBaseUrl);
+axios.defaults.baseURL = apiBaseUrl;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

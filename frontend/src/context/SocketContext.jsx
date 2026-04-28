@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
+import { SOCKET_URL, API_URL } from '../config';
 
 const SocketContext = createContext();
 
@@ -17,11 +18,15 @@ export const SocketProvider = ({ children }) => {
     let newSocket;
 
     if (user && user.id) {
-      const configuredUrl = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
-      const socketUrl = configuredUrl
-        ? configuredUrl.replace(/\/+$/, '')
-        : `${window.location.protocol}//${window.location.hostname}:5000`;
+      const configuredUrl = (SOCKET_URL || API_URL).trim();
+      const socketUrl = configuredUrl ? configuredUrl.replace(/\/+$, '') : '';
 
+      if (!socketUrl) {
+        console.warn('Socket URL not configured. Set VITE_SOCKET_URL or VITE_API_URL.');
+        return;
+      }
+
+      console.log('SOCKET_URL:', socketUrl);
       // Connect to Socket.io server
       newSocket = io(socketUrl);
 

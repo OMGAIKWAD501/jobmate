@@ -16,7 +16,7 @@
 - Set **Root Directory** to `frontend`.
 - Framework: Vite (auto-detected).
 - Add environment variables:
-  - `VITE_API_BASE_URL=https://your-backend-url.onrender.com`
+  - `VITE_API_URL=https://your-backend-url.onrender.com`
   - `VITE_SOCKET_URL=https://your-backend-url.onrender.com`
 - Deploy.
 

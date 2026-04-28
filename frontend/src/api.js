@@ -10,7 +10,17 @@ const shouldIgnoreEnvLocalhostUrl =
   !isLocalhostHost &&
   /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(envApiUrl || "");
 
-const baseURL = shouldIgnoreEnvLocalhostUrl ? FALLBACK_API_URL : (envApiUrl || FALLBACK_API_URL);
+const normalizeApiBaseUrl = (value) => {
+  const sanitized = (value || "").trim().replace(/\/+$/, "");
+  if (!sanitized) {
+    return FALLBACK_API_URL;
+  }
+  return sanitized.endsWith("/api") ? sanitized : `${sanitized}/api`;
+};
+
+const baseURL = shouldIgnoreEnvLocalhostUrl
+  ? FALLBACK_API_URL
+  : normalizeApiBaseUrl(envApiUrl || FALLBACK_API_URL);
 
 const api = axios.create({
   baseURL,

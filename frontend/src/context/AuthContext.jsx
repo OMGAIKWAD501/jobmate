@@ -35,6 +35,20 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // ✅ LOGIN FIXED
+  const getErrorMessage = (error, fallbackMessage) => {
+    const data = error?.response?.data;
+    if (typeof data === 'string' && data.trim()) {
+      return data;
+    }
+    if (data?.message) {
+      return data.message;
+    }
+    if (error?.message === 'Network Error') {
+      return 'Cannot reach server. Please try again.';
+    }
+    return fallbackMessage;
+  };
+
   const login = async (email, password) => {
     try {
       const res = await api.post(
@@ -55,7 +69,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Server error'
+        message: getErrorMessage(error, 'Server error')
       };
     }
   };
@@ -79,7 +93,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Registration failed'
+        message: getErrorMessage(error, 'Registration failed')
       };
     }
   };

@@ -8,11 +8,18 @@ const isLocalhostHost =
   isBrowser && ["localhost", "127.0.0.1"].includes(window.location.hostname);
 const isLocalhostTarget = (value = "") =>
   /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(value);
+const normalizeApiBaseUrl = (value = "") => {
+  const sanitized = value.trim().replace(/\/+$/, "");
+  if (!sanitized) {
+    return FALLBACK_API_URL;
+  }
+  return sanitized.endsWith("/api") ? sanitized : `${sanitized}/api`;
+};
 
 const API_URL =
   import.meta.env.PROD && !isLocalhostHost && isLocalhostTarget(envApiUrl || "")
     ? FALLBACK_API_URL
-    : (envApiUrl || FALLBACK_API_URL);
+    : normalizeApiBaseUrl(envApiUrl || FALLBACK_API_URL);
 
 const SOCKET_URL =
   import.meta.env.PROD && !isLocalhostHost && isLocalhostTarget(envSocketUrl || "")

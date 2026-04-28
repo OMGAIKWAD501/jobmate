@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import API_URL from '../config';
+import api from '../api';
 import L from 'leaflet';
 
 import 'leaflet/dist/leaflet.css';
@@ -37,16 +37,7 @@ const CurrentLocation = () => {
 
       // 2. Post location securely to backend
       try {
-        // Safe relative API call assuming proxy setup handles '/api'
-        const response = await fetch(`${API_URL}/api/location`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lat, lng }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to log location to backend');
-        }
+        await api.post('/location', { lat, lng });
 
         console.log('Location logged onto the backend successfully.');
 

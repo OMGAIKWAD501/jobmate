@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
-import API_URL from '../config';
+import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import DirectHireModal from '../components/DirectHireModal';
@@ -23,12 +22,12 @@ const WorkerDetail = () => {
   useEffect(() => {
     const fetchWorkerAndReviews = async () => {
       try {
-        const workerRes = await axios.get(`${API_URL}/api/workers/${id}`);
+        const workerRes = await api.get(`/workers/${id}`);
         setWorker(workerRes.data);
         
         // Wait to fetch reviews using the actual user _id associated with the worker
         const workerUserId = workerRes.data.user?._id || workerRes.data.user?.id;
-        const reviewsRes = await axios.get(`${API_URL}/api/workers/${workerUserId}/reviews`);
+        const reviewsRes = await api.get(`/workers/${workerUserId}/reviews`);
         console.log('API Response (reviews):', reviewsRes.data);
         setReviews(Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
       } catch (error) {
@@ -45,7 +44,7 @@ const WorkerDetail = () => {
 
       if (user && user.role === 'worker' && currentUserId === workerUserId) {
         try {
-          const response = await axios.get(`${API_URL}/api/jobs/recommended/for-worker`);
+          const response = await api.get('/jobs/recommended/for-worker');
           console.log('API Response (recommended jobs):', response.data);
           setRecommendedJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
         } catch (error) {
@@ -88,7 +87,7 @@ const WorkerDetail = () => {
     setApplyingToJob(jobId);
 
     try {
-      await axios.post(`${API_URL}/api/jobs/${jobId}/apply`, {
+      await api.post(`/jobs/${jobId}/apply`, {
         message: applicationMessage
       });
 

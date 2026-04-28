@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import API_URL from '../config';
+import api from '../api';
 import { motion } from 'framer-motion';
 import MapUI from './MapUI';
 import useLocationSearch, { RADIUS_OPTIONS } from '../hooks/useLocationSearch';
@@ -26,7 +25,7 @@ const NearbyWorkers = () => {
       setLocationError('');
 
       try {
-        const response = await axios.get(`${API_URL}/api/nearby`, {
+        const response = await api.get('/nearby', {
           params: {
             lat: coordinates.lat,
             lng: coordinates.lng,

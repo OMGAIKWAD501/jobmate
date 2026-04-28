@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
-import API_URL from '../config';
+import api from '../api';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import WorkerCard from '../components/WorkerCard';
 import './Home.css';
@@ -16,7 +15,7 @@ const Home = () => {
   useEffect(() => {
     const fetchTopWorkers = async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/workers/top?limit=20`);
+        const response = await api.get('/workers/top?limit=20');
         console.log('API Response (top workers):', response.data);
         setTopWorkers(Array.isArray(response.data) ? response.data : []);
       } catch (error) {

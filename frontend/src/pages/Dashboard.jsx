@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
-import API_URL from '../config';
+import api from '../api';
 import { motion } from 'framer-motion';
 import NearbyWorkers from '../components/NearbyWorkers';
 import ReviewModal from '../components/ReviewModal';
@@ -52,10 +51,23 @@ const Dashboard = () => {
 
   const [activeTab, setActiveTab] = useState(user?.role === 'worker' ? 'applications' : 'jobs');
 
+  const reverseGeocode = async (lat, lng) => {
+    const params = new URLSearchParams({
+      format: 'json',
+      lat: String(lat),
+      lon: String(lng)
+    });
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error('Reverse geocoding failed');
+    }
+    return response.json();
+  };
+
   const fetchProfile = async () => {
     if (!user) return;
     try {
-      const response = await axios.get(`${API_URL}/api/auth/profile`);
+      const response = await api.get('/auth/profile');
       setProfile(response.data);
       setFormData({
         ...response.data.user,
@@ -72,7 +84,7 @@ const Dashboard = () => {
     if (!user) return;
     try {
       if (user.role === 'customer') {
-        const response = await axios.get(`${API_URL}/api/jobs?status=all`);
+        const response = await api.get('/jobs?status=all');
         console.log('API Response (customer jobs):', response.data);
         const fetchedJobs = Array.isArray(response.data.jobs) ? response.data.jobs : [];
         const customerId = user._id || user.id;
@@ -92,7 +104,7 @@ const Dashboard = () => {
     if (!user) return;
     try {
       if (user.role === 'worker') {
-        const response = await axios.get(`${API_URL}/api/jobs?status=all`);
+        const response = await api.get('/jobs?status=all');
         console.log('API Response (worker applications):', response.data);
         const fetchedJobs = Array.isArray(response.data.jobs) ? response.data.jobs : [];
         const userApplications = [];
@@ -123,7 +135,7 @@ const Dashboard = () => {
   const fetchDirectRequests = async () => {
     if (!user) return;
     try {
-      const response = await axios.get(`${API_URL}/api/jobs/direct-requests`);
+      const response = await api.get('/jobs/direct-requests');
       console.log('API Response (direct requests):', response.data);
       setDirectRequests(Array.isArray(response.data.jobs) ? response.data.jobs : []);
     } catch (error) {
@@ -227,11 +239,11 @@ const Dashboard = () => {
         // Remove undefined fields
         Object.keys(workerData).forEach(key => workerData[key] === undefined && delete workerData[key]);
 
-        await axios.put(`${API_URL}/api/workers/profile`, workerData);
+        await api.put('/workers/profile', workerData);
       }
 
       // Re-fetch profile to keep dashboard state consistent and avoid stale UI crashes.
-      const refreshedProfile = await axios.get(`${API_URL}/api/auth/profile`);
+      const refreshedProfile = await api.get('/auth/profile');
       setProfile(refreshedProfile.data);
       setFormData({
         ...refreshedProfile.data.user,
@@ -268,8 +280,8 @@ const Dashboard = () => {
       if (jobForm.budget) jobData.budget = parseFloat(jobForm.budget);
       if (jobForm.duration) jobData.duration = jobForm.duration;
 
-      await axios.post(`${API_URL}/api/jobs`, jobData);
-      const response = await axios.get(`${API_URL}/api/jobs`);
+      await api.post('/jobs', jobData);
+      const response = await api.get('/jobs');
       setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
 
       setJobForm({
@@ -305,14 +317,8 @@ const Dashboard = () => {
         setJobCoordinates(nextCoordinates);
 
         try {
-          const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
-            params: {
-              format: 'json',
-              lat: nextCoordinates.lat,
-              lon: nextCoordinates.lng
-            }
-          });
-          const address = response?.data?.display_name;
+          const response = await reverseGeocode(nextCoordinates.lat, nextCoordinates.lng);
+          const address = response?.display_name;
           if (address) {
             setJobForm((prev) => ({ ...prev, location: address }));
           } else {
@@ -379,8 +385,8 @@ const Dashboard = () => {
       if (editJobForm.budget) jobData.budget = parseFloat(editJobForm.budget);
       if (editJobForm.duration) jobData.duration = editJobForm.duration;
 
-      await axios.put(`${API_URL}/api/jobs/${editingJobId}`, jobData);
-      const response = await axios.get(`${API_URL}/api/jobs`);
+      await api.put(`/jobs/${editingJobId}`, jobData);
+      const response = await api.get('/jobs');
       setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
 
       setEditingJobId(null);
@@ -412,14 +418,8 @@ const Dashboard = () => {
         setEditJobCoordinates(nextCoordinates);
 
         try {
-          const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
-            params: {
-              format: 'json',
-              lat: nextCoordinates.lat,
-              lon: nextCoordinates.lng
-            }
-          });
-          const address = response?.data?.display_name;
+          const response = await reverseGeocode(nextCoordinates.lat, nextCoordinates.lng);
+          const address = response?.display_name;
           if (address) {
             setEditJobForm((prev) => ({ ...prev, location: address }));
           } else {
@@ -447,7 +447,7 @@ const Dashboard = () => {
     }
 
     try {
-      await axios.delete(`${API_URL}/api/jobs/${id}`);
+      await api.delete(`/jobs/${id}`);
       setJobs(jobs.filter(job => job._id !== id));
       alert('Job deleted successfully!');
     } catch (error) {
@@ -458,7 +458,7 @@ const Dashboard = () => {
 
   const handleAcceptApplication = async (jobId, applicationId) => {
     try {
-      await axios.put(`${API_URL}/api/jobs/${jobId}/applications/${applicationId}/accept`);
+      await api.put(`/jobs/${jobId}/applications/${applicationId}/accept`);
       await fetchJobs();
       alert('Application accepted!');
     } catch (error) {
@@ -472,7 +472,7 @@ const Dashboard = () => {
       return;
     }
     try {
-      await axios.put(`${API_URL}/api/jobs/${jobId}/applications/${applicationId}/decline`);
+      await api.put(`/jobs/${jobId}/applications/${applicationId}/decline`);
       await fetchJobs();
       alert('Application declined!');
     } catch (error) {
@@ -504,22 +504,16 @@ const Dashboard = () => {
           const latitude = Number(position.coords.latitude);
           const longitude = Number(position.coords.longitude);
 
-          const endpoint = user.role === 'worker' ? `${API_URL}/api/workers/location` : `${API_URL}/api/auth/location`;
-          await axios.put(endpoint, {
+          const endpoint = user.role === 'worker' ? '/workers/location' : '/auth/location';
+          await api.put(endpoint, {
             lat: latitude,
             lng: longitude
           });
 
           let resolvedAddress = '';
           try {
-            const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
-              params: {
-                format: 'json',
-                lat: latitude,
-                lon: longitude
-              }
-            });
-            resolvedAddress = response?.data?.display_name || '';
+            const response = await reverseGeocode(latitude, longitude);
+            resolvedAddress = response?.display_name || '';
           } catch (reverseGeoError) {
             console.error('Error reverse geocoding profile location:', reverseGeoError);
           }
@@ -813,7 +807,7 @@ const Dashboard = () => {
                   <JobJourneyCard 
                     key={job._id} 
                     job={job} 
-                    onUpdate={() => axios.get(`${API_URL}/api/jobs/direct-requests`).then(res => setDirectRequests(res.data.jobs))} 
+                    onUpdate={() => api.get('/jobs/direct-requests').then(res => setDirectRequests(res.data.jobs))} 
                     onOpenReview={() => handleOpenReviewModal(job)}
                   />
                 )) : <p className="text-muted">No direct requests</p>}

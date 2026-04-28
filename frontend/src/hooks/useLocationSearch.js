@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 
 export const RADIUS_OPTIONS = [1, 3, 5, 10];
 
@@ -67,20 +66,24 @@ const useLocationSearch = ({ defaultMode = 'none' } = {}) => {
     setLocationError('');
     setLoadingLocation(true);
     try {
-      const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-        params: { q: query, format: 'json', limit: 1 },
+      const params = new URLSearchParams({ q: query, format: 'json', limit: '1' });
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
         headers: { Accept: 'application/json' }
       });
+      if (!response.ok) {
+        throw new Error('Location search request failed');
+      }
+      const data = await response.json();
 
-      if (!response.data?.length) {
+      if (!data?.length) {
         setLocationError('Location not found. Please try another city/pincode.');
         setCoordinates(null);
         return false;
       }
 
       setCoordinates({
-        lat: Number.parseFloat(response.data[0].lat),
-        lng: Number.parseFloat(response.data[0].lon)
+        lat: Number.parseFloat(data[0].lat),
+        lng: Number.parseFloat(data[0].lon)
       });
       return true;
     } catch (error) {

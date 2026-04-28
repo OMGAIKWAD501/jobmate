@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import API_URL from '../config';
+import api from '../api';
 import WorkerCard from '../components/WorkerCard';
 import useLocationSearch, { RADIUS_OPTIONS } from '../hooks/useLocationSearch';
 import './Workers.css';
@@ -46,7 +45,7 @@ const Workers = () => {
         )
       });
 
-      const response = await axios.get(`${API_URL}/api/workers/search?${params}`);
+      const response = await api.get(`/workers/search?${params}`);
       console.log('API Response (workers/search):', response.data);
       const fetchedWorkers = response.data.workers;
       setWorkers(Array.isArray(fetchedWorkers) ? fetchedWorkers : []);
@@ -73,7 +72,7 @@ const Workers = () => {
 
       setLoading(true);
       try {
-        const response = await axios.get(`${API_URL}/api/nearby`, {
+        const response = await api.get('/nearby', {
           params: {
             lat: coordinates.lat,
             lng: coordinates.lng,

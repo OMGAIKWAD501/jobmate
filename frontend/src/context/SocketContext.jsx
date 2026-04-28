@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
@@ -12,49 +12,65 @@ export const useSocket = () => {
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const { user } = useAuth(); // AuthContext gives us access to logged-in user
+  const socketRef = useRef(null); // prevent multiple connections
+  const { user } = useAuth();
 
   useEffect(() => {
-    let newSocket;
+    if (!user || !user.id) return;
 
-    if (user && user.id) {
-      const configuredUrl = (SOCKET_URL || API_URL).trim();
-      const socketUrl = configuredUrl ? configuredUrl.replace(/\/+$, '') : '';
+    const configuredUrl = (SOCKET_URL || API_URL || '').trim();
+    const socketUrl = configuredUrl.replace(/\/+$/, ''); // ✅ FIXED regex
 
-      if (!socketUrl) {
-        console.warn('Socket URL not configured. Set VITE_SOCKET_URL or VITE_API_URL.');
-        return;
-      }
-
-      console.log('SOCKET_URL:', socketUrl);
-      // Connect to Socket.io server
-      newSocket = io(socketUrl);
-
-      setSocket(newSocket);
-
-      newSocket.on('connect', () => {
-        // Register this client as the specific user immediately upon connect
-        newSocket.emit('register', user.id);
-      });
-
-      newSocket.on('notification', (payload) => {
-        // Pop a toast anywhere in the app!
-        toast(payload.message, {
-          icon: '🔔',
-          style: {
-            borderRadius: '10px',
-            background: '#333',
-            color: '#fff',
-          },
-        });
-      });
+    if (!socketUrl) {
+      console.warn('Socket URL not configured. Set VITE_SOCKET_URL or VITE_API_URL.');
+      return;
     }
 
-    // Cleanup when component unmounts or user logs out
+    console.log('SOCKET_URL:', socketUrl);
+
+    // Prevent duplicate socket connections
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+
+    const newSocket = io(socketUrl, {
+      transports: ['websocket'], // ✅ more reliable
+      withCredentials: true,
+    });
+
+    socketRef.current = newSocket;
+    setSocket(newSocket);
+
+    // Connected
+    newSocket.on('connect', () => {
+      console.log('Socket connected:', newSocket.id);
+      newSocket.emit('register', user.id);
+    });
+
+    // Notification listener
+    newSocket.on('notification', (payload) => {
+      toast(payload.message, {
+        icon: '🔔',
+        style: {
+          borderRadius: '10px',
+          background: '#333',
+          color: '#fff',
+        },
+      });
+    });
+
+    // Error handling
+    newSocket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Socket disconnected');
+    });
+
+    // Cleanup
     return () => {
-      if (newSocket) {
-        newSocket.disconnect();
-      }
+      newSocket.disconnect();
     };
   }, [user]);
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import API_URL from '../config';
+import api from '../api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../context/SocketContext';
 import './NotificationsDropdown.css';
@@ -39,7 +38,7 @@ const NotificationsDropdown = () => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/notifications`);
+      const response = await api.get('/notifications');
       console.log('API Response (notifications):', response.data);
       const fetchedNotifs = Array.isArray(response.data.data) ? response.data.data : [];
       setNotifications(fetchedNotifs);
@@ -52,7 +51,7 @@ const NotificationsDropdown = () => {
   const handleMarkAsRead = async (id, currentReadStatus) => {
     if (currentReadStatus) return;
     try {
-      await axios.put(`${API_URL}/api/notifications/${id}/read`);
+      await api.put(`/notifications/${id}/read`);
       setNotifications((prev) =>
         (Array.isArray(prev) ? prev : []).map((n) => (n._id === id ? { ...n, read: true } : n))
       );
@@ -65,7 +64,7 @@ const NotificationsDropdown = () => {
   const handleMarkAllAsRead = async () => {
     if (unreadCount === 0) return;
     try {
-      await axios.put(`${API_URL}/api/notifications/read-all`);
+      await api.put('/notifications/read-all');
       setNotifications((prev) =>
         (Array.isArray(prev) ? prev : []).map((n) => ({ ...n, read: true }))
       );
@@ -86,7 +85,7 @@ const NotificationsDropdown = () => {
   const handleAcceptHire = async (event, notif) => {
     event.stopPropagation();
     try {
-      const response = await axios.put(`${API_URL}/api/notifications/${notif._id}/accept-hire`);
+      const response = await api.put(`/notifications/${notif._id}/accept-hire`);
       setNotifications((prev) =>
         (Array.isArray(prev) ? prev : []).map((n) =>
           n._id === notif._id

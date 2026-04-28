@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const API_BASE_URL = process.env.API_BASE_URL || 'https://jobmate-backend-jkx3.onrender.com/api';
 
 async function test() {
   try {
@@ -16,7 +17,7 @@ async function test() {
     const email = owner.email;
 
     console.log(`Logging in as dynamically found owner: ${email}`);
-    const loginRes = await fetch('http://localhost:5000/api/auth/login', {
+    const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({email: email, password: 'password123'})
@@ -27,7 +28,7 @@ async function test() {
     const appId = jobWithApp.applications[0]._id;
     console.log('Accepting application', appId, 'for job', jobWithApp._id);
 
-    const accRes = await fetch(`http://localhost:5000/api/jobs/${jobWithApp._id}/applications/${appId}/accept`, {
+    const accRes = await fetch(`${API_BASE_URL}/jobs/${jobWithApp._id}/applications/${appId}/accept`, {
       method: 'PUT',
       headers: {Authorization: 'Bearer ' + token}
     });

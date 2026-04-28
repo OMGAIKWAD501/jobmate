@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star } from 'lucide-react';
-import axios from 'axios';
-import API_URL from '../config';
+import api from '../api';
 import toast from 'react-hot-toast';
 
 const ReviewModal = ({ isOpen, onClose, job, onReviewSubmitted }) => {
@@ -24,11 +23,11 @@ const ReviewModal = ({ isOpen, onClose, job, onReviewSubmitted }) => {
     try {
       // First complete the job if not already
       if (job.status !== 'completed') {
-        await axios.put(`${API_URL}/api/jobs/${job._id}/complete`);
+        await api.put(`/jobs/${job._id}/complete`);
       }
       
       // Then submit the review
-      await axios.post(`${API_URL}/api/jobs/${job._id}/review`, { rating, comment });
+      await api.post(`/jobs/${job._id}/review`, { rating, comment });
       
       toast.success(job.status === 'completed' ? 'Review submitted!' : 'Job completed and review submitted!');
       onReviewSubmitted(); // Refresh parent state

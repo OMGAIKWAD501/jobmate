@@ -7,7 +7,7 @@ const isBrowser = typeof window !== "undefined";
 const isLocalhostHost =
   isBrowser && ["localhost", "127.0.0.1"].includes(window.location.hostname);
 const isLocalhostTarget = (value = "") =>
-  /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(value);
+  /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(value);
 
 const API_URL =
   import.meta.env.PROD && !isLocalhostHost && isLocalhostTarget(envApiUrl || "")

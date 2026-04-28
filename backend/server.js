@@ -18,8 +18,30 @@ socketService.init(server);
 
 // Middleware
 app.use(helmet());
+const allowedOrigins = [
+  "https://jobmate-frontend-pi.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  ...(process.env.FRONTEND_ORIGINS ? process.env.FRONTEND_ORIGINS.split(",").map((item) => item.trim()).filter(Boolean) : []),
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.trim()] : [])
+];
+
 app.use(cors({
-  origin: ["https://jobmate-frontend-pi.vercel.app", "http://localhost:5173", "http://localhost:3000"], // 🔥 your frontend URLs
+  origin: (origin, callback) => {
+    // Allow same-origin/server-to-server requests with no Origin header.
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const isExplicitlyAllowed = allowedOrigins.includes(origin);
+    const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+
+    if (isExplicitlyAllowed || isVercelPreview) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));

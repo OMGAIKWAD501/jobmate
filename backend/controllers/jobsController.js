@@ -401,23 +401,32 @@ exports.getRecommendedJobs = async (req, res) => {
       return res.status(404).json({ message: 'Worker profile not found' });
     }
 
+    const { page = 1, limit = 50 } = req.query;
+
+    // Normalize worker skills to lowercase for case-insensitive matching
+    const normalizedSkills = (worker.skills || []).map(s => s.trim().toLowerCase());
+
     // Find jobs that match worker's skills and are open
     const recommendedJobs = await Job.find({
       status: 'open',
-      requiredSkills: { $in: worker.skills }
+      requiredSkills: { $in: normalizedSkills }
     })
     .populate('customer', 'name location')
+    .populate('assignedWorker', 'name profilePicture')
+    .populate('applications.worker', 'name profilePicture')
     .sort({ createdAt: -1 })
-    .limit(10);
+    .limit(limit * 1)
+    .skip((page - 1) * limit);
 
     // Filter out jobs the worker has already applied for
-    const filteredJobs = recommendedJobs.filter(job => 
+    const filteredJobs = recommendedJobs.filter(job =>
       !job.applications.some(app => app.worker.toString() === req.user.id)
     );
 
     res.json({
       jobs: filteredJobs,
-      total: filteredJobs.length
+      total: filteredJobs.length,
+      workerSkills: worker.skills
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

@@ -87,4 +87,12 @@ const jobSchema = new mongoose.Schema({
 jobSchema.index({ requiredSkills: 1, status: 1 });
 jobSchema.index({ geometry: '2dsphere' }); // Geo-spatial indexing
 
-module.exports = mongoose.model('Job', jobSchema);
+// Normalize skills to lowercase before save for consistent matching
+jobSchema.pre('save', function (next) {
+  if (this.requiredSkills && Array.isArray(this.requiredSkills)) {
+    this.requiredSkills = this.requiredSkills.map(s => s.trim().toLowerCase());
+  }
+  next();
+});
+
+module.exports = mongoose.model('Job', jobSchema);

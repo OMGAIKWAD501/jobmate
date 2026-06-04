@@ -73,4 +73,12 @@ const workerSchema = new mongoose.Schema({
 workerSchema.index({ skills: 1, 'user.location': 1 });
 workerSchema.index({ location: '2dsphere' });
 
-module.exports = mongoose.model('Worker', workerSchema);
+// Normalize skills to lowercase before save for consistent matching
+workerSchema.pre('save', function (next) {
+  if (this.skills && Array.isArray(this.skills)) {
+    this.skills = this.skills.map(s => s.trim().toLowerCase());
+  }
+  next();
+});
+
+module.exports = mongoose.model('Worker', workerSchema);

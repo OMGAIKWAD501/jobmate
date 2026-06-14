@@ -5,9 +5,61 @@
 
 .page-title {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 12px;
   font-size: 36px;
   color: #111827;
+}
+
+.skill-filter-notice {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #065f46;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 999px;
+  padding: 8px 20px;
+  display: inline-block;
+  width: auto;
+  left: 50%;
+  position: relative;
+  transform: translateX(-50%);
+}
+
+/* ── Tabs (inline inside toolbar) ── */
+.jobs-tab {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 2px solid #e5e7eb;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.jobs-tab:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.jobs-tab.active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 28px;
+  background: #e5e7eb;
+  flex-shrink: 0;
+  align-self: center;
 }
 
 .jobs-grid {
@@ -16,6 +68,7 @@
   gap: 30px;
 }
 
+/* ── Toolbar ── */
 .jobs-toolbar {
   margin-bottom: 20px;
   padding: 14px;
@@ -53,10 +106,17 @@
   font-size: 14px;
 }
 
+/* ── Job Card ── */
 .job-card {
   display: flex;
   flex-direction: column;
   padding: 24px;
+  transition: border-color 0.2s;
+}
+
+.skill-matched-card {
+  border: 2px solid rgba(99, 102, 241, 0.4) !important;
+  box-shadow: 0 4px 24px rgba(99, 102, 241, 0.12) !important;
 }
 
 .job-card-header {
@@ -64,7 +124,26 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 16px;
-  gap: 16px;
+  gap: 10px;
+}
+
+.job-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.skill-match-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  white-space: nowrap;
 }
 
 .job-card h3 {
@@ -125,6 +204,15 @@
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
+  transition: all 0.15s;
+}
+
+/* Skill tags that match the worker's own skills */
+.skill-tag-match {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #6366f1;
+  font-weight: 700;
 }
 
 .job-desc {
@@ -171,10 +259,16 @@
   border-radius: 16px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  margin-bottom: 30px;
 }
 
 @media (max-width: 768px) {
   .jobs-grid {
     grid-template-columns: 1fr;
+  }
+
+  .jobs-tab {
+    padding: 7px 14px;
+    font-size: 12px;
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +8,8 @@ import './Jobs.css';
 const Jobs = () => {
   const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
+  const [workerSkills, setWorkerSkills] = useState([]);
+  const [activeTab, setActiveTab] = useState('matched'); // 'matched' | 'all'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
@@ -35,12 +37,29 @@ const Jobs = () => {
     }
   };
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async (tab = activeTab) => {
     setLoading(true);
+    setError('');
     try {
-      const response = await api.get('/jobs');
-      console.log('API Response (jobs):', response.data);
-      setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
+      let response;
+      if (user?.role === 'worker') {
+        if (tab === 'matched') {
+          response = await api.get('/jobs/recommended/for-worker');
+          setWorkerSkills(response.data.workerSkills || []);
+          setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
+        } else {
+          // All jobs tab — also fetch worker skills for badge highlighting
+          const [allRes, matchedRes] = await Promise.all([
+            api.get('/jobs'),
+            api.get('/jobs/recommended/for-worker')
+          ]);
+          setWorkerSkills(matchedRes.data.workerSkills || []);
+          setJobs(Array.isArray(allRes.data.jobs) ? allRes.data.jobs : []);
+        }
+      } else {
+        response = await api.get('/jobs');
+        setJobs(Array.isArray(response.data.jobs) ? response.data.jobs : []);
+      }
       setInfoMessage('');
       setEffectiveRadiusKm(null);
     } catch (err) {
@@ -49,12 +68,12 @@ const Jobs = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.role, activeTab]);
 
   useEffect(() => {
-    fetchJobs();
+    fetchJobs(activeTab);
     fetchAppliedJobIds();
-  }, [user?.role]);
+  }, [user?.role, activeTab]);
 
   useEffect(() => {
     const fetchNearbyJobs = async () => {
@@ -89,11 +108,12 @@ const Jobs = () => {
         }
 
         if (nearbyJobs.length === 0) {
-          const fallback = await api.get('/jobs');
-          console.log('API Response (fallback jobs):', fallback.data);
+          const fallback = activeTab === 'matched' && user?.role === 'worker'
+            ? await api.get('/jobs/recommended/for-worker')
+            : await api.get('/jobs');
           setJobs(Array.isArray(fallback.data.jobs) ? fallback.data.jobs : []);
           setEffectiveRadiusKm(null);
-          setInfoMessage(`No nearby jobs found within ${radiusSequence[radiusSequence.length - 1]} km. Showing latest open jobs instead.`);
+          setInfoMessage(`No nearby jobs found within ${radiusSequence[radiusSequence.length - 1]} km. Showing ${activeTab === 'matched' && user?.role === 'worker' ? 'skill-matched' : 'latest open'} jobs instead.`);
         } else {
           setJobs(nearbyJobs);
           setEffectiveRadiusKm(usedRadius);
@@ -117,7 +137,21 @@ const Jobs = () => {
   const clearNearby = () => {
     clearLocation();
     setEffectiveRadiusKm(null);
-    fetchJobs();
+    fetchJobs(activeTab);
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setJobs([]);
+    setError('');
+    setInfoMessage('');
+  };
+
+  // Check if a job matches worker skills (for badge in All Jobs tab)
+  const isSkillMatch = (job) => {
+    if (!workerSkills.length) return false;
+    const lowerSkills = workerSkills.map(s => s.toLowerCase());
+    return (job.requiredSkills || []).some(s => lowerSkills.includes(s.toLowerCase()));
   };
 
   const handleApply = async (jobId) => {
@@ -162,21 +196,34 @@ const Jobs = () => {
     }
   };
 
+  const isWorker = user?.role === 'worker';
+
   return (
-    <motion.div 
+    <motion.div
       className="jobs-page"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <div className="container">
-        <motion.h1 
+        <motion.h1
           className="page-title"
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
         >
           Job Marketplace
         </motion.h1>
+
+        {isWorker && activeTab === 'matched' && (
+          <p className="skill-filter-notice">
+            ✅ Showing only jobs that match your registered skills.
+          </p>
+        )}
+        {isWorker && activeTab === 'all' && (
+          <p className="skill-filter-notice all-jobs-notice">
+            🌐 Showing all open jobs. Jobs matching your skills are highlighted.
+          </p>
+        )}
 
         <div className="glass-panel jobs-toolbar">
           <div className="jobs-toolbar-row">
@@ -193,6 +240,27 @@ const Jobs = () => {
             >
               {loadingLocation ? 'Finding nearby...' : 'Find Nearby Jobs'}
             </button>
+
+            {/* Skill filter tabs — right after Find Nearby Jobs */}
+            {isWorker && (
+              <>
+                <div className="toolbar-divider" />
+                <button
+                  className={`jobs-tab toolbar-control ${activeTab === 'matched' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('matched')}
+                >
+                  ⚡ Matched Skills
+                </button>
+                <button
+                  className={`jobs-tab toolbar-control ${activeTab === 'all' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('all')}
+                >
+                  🌐 All Jobs
+                </button>
+                <div className="toolbar-divider" />
+              </>
+            )}
+
             <button type="button" className="btn-secondary toolbar-control" onClick={clearNearby}>
               Clear Nearby
             </button>
@@ -211,22 +279,40 @@ const Jobs = () => {
           )}
           {locationError && <p className="toolbar-error">{locationError}</p>}
           {infoMessage && <p className="toolbar-info">{infoMessage}</p>}
-        </div>
+        </div> 
 
         {error && <div className="error glass-panel">{error}</div>}
 
         {!loading && !error && jobs.length === 0 && (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="empty-state">
-            No jobs found. Please check back later.
-          </motion.p>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="empty-state">
+            {isWorker && activeTab === 'matched'
+              ? (
+                <>
+                  <p style={{ fontSize: '40px', marginBottom: '12px' }}>🔍</p>
+                  <p style={{ fontWeight: 600, marginBottom: 8 }}>No skill-matched jobs found.</p>
+                  <p style={{ fontSize: '14px', color: '#9ca3af' }}>
+                    Switch to <strong>All Jobs</strong> to browse everything, or update your skills in your profile.
+                  </p>
+                  <button
+                    className="btn-primary"
+                    style={{ marginTop: '16px' }}
+                    onClick={() => handleTabChange('all')}
+                  >
+                    Browse All Jobs
+                  </button>
+                </>
+              )
+              : <p>No jobs found. Please check back later.</p>
+            }
+          </motion.div>
         )}
 
         <div className="jobs-grid">
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             {loading ? (
               [1, 2, 3, 4, 5, 6].map(i => (
-                <motion.div 
-                  key={`skeleton-${i}`} 
+                <motion.div
+                  key={`skeleton-${i}`}
                   className="glass-panel skeleton-card"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -235,59 +321,75 @@ const Jobs = () => {
                 />
               ))
             ) : Array.isArray(jobs) ? (
-              jobs.map((job, idx) => (
-                <motion.div 
-                  key={job._id} 
-                  className="job-card glass-panel"
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1, type: 'spring' }}
-                  whileHover={{ y: -5 }}
-                >
-                  <div className="job-card-header">
-                    <h3>{job.title}</h3>
-                    <span className={`status-badge ${job.status}`}>{job.status}</span>
-                  </div>
-                  
-                  <p className="job-location"><span className="icon">📍</span> {job.location}</p>
-                  
-                  <div className="job-skills">
-                    {(Array.isArray(job.requiredSkills) ? job.requiredSkills : []).map((skill, skillIndex) => (
-                      <span key={`${job._id}-skill-${skillIndex}`} className="skill-tag">{skill}</span>
-                    ))}
-                  </div>
+              jobs.map((job, idx) => {
+                const matched = isWorker && activeTab === 'all' && isSkillMatch(job);
+                return (
+                  <motion.div
+                    key={job._id}
+                    className={`job-card glass-panel${matched ? ' skill-matched-card' : ''}`}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.07, type: 'spring' }}
+                    whileHover={{ y: -5 }}
+                  >
+                    <div className="job-card-header">
+                      <h3>{job.title}</h3> 
+                      <div className="job-card-badges">
+                        {matched && (
+                          <span className="skill-match-badge">⚡ Skill Match</span>
+                        )}
+                        <span className={`status-badge ${job.status}`}>{job.status}</span>
+                      </div>
+                    </div>
 
-                  <p className="job-desc">
-                    {((job.description || '').length > 120)
-                      ? `${(job.description || '').slice(0, 120)}...`
-                      : (job.description || 'No description provided.')}
-                  </p>
-                  
-                  <div className="job-meta">
-                    <span className="job-budget">💰 ₹{job.budget || 'N/A'}</span>
-                    
-                    {job.status === 'open' ? (
-                      appliedJobIds.includes(job._id) ? (
-                        <button className="btn-secondary apply-btn disabled" disabled>
-                          Applied
-                        </button>
+                    <p className="job-location"><span className="icon">📍</span> {job.location}</p>
+
+                    <div className="job-skills">
+                      {(Array.isArray(job.requiredSkills) ? job.requiredSkills : []).map((skill, skillIndex) => {
+                        const isMySkill = workerSkills.map(s => s.toLowerCase()).includes(skill.toLowerCase());
+                        return (
+                          <span
+                            key={`${job._id}-skill-${skillIndex}`}
+                            className={`skill-tag${isMySkill ? ' skill-tag-match' : ''}`}
+                          >
+                            {skill}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    <p className="job-desc">
+                      {((job.description || '').length > 120)
+                        ? `${(job.description || '').slice(0, 120)}...`
+                        : (job.description || 'No description provided.')}
+                    </p>
+
+                    <div className="job-meta">
+                      <span className="job-budget">💰 ₹{job.budget || 'N/A'}</span>
+
+                      {job.status === 'open' ? (
+                        appliedJobIds.includes(job._id) ? (
+                          <button className="btn-secondary apply-btn disabled" disabled>
+                            Applied
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleApply(job._id)}
+                            className="btn-primary apply-btn"
+                            disabled={applyingJobIds.includes(job._id)}
+                          >
+                            {applyingJobIds.includes(job._id) ? 'Applying...' : 'Apply Now'}
+                          </button>
+                        )
                       ) : (
-                        <button
-                          onClick={() => handleApply(job._id)}
-                          className="btn-primary apply-btn"
-                          disabled={applyingJobIds.includes(job._id)}
-                        >
-                          {applyingJobIds.includes(job._id) ? 'Applying...' : 'Apply Now'}
+                        <button className="btn-secondary apply-btn disabled" disabled>
+                          Closed
                         </button>
-                      )
-                    ) : (
-                      <button className="btn-secondary apply-btn disabled" disabled>
-                        Closed
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              ))
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })
             ) : <p className="text-muted" style={{ gridColumn: '1 / -1' }}>No available jobs.</p>}
           </AnimatePresence>
         </div>

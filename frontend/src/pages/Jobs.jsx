@@ -96,7 +96,7 @@ const Jobs = () => {
               lat: coordinates.lat,
               lng: coordinates.lng,
               radius,
-              limit: 20
+              limit: 50
             }
           });
           const jobsFromRadius = Array.isArray(response.data.jobs) ? response.data.jobs : [];
@@ -107,14 +107,47 @@ const Jobs = () => {
           }
         }
 
+        const isWorkerMatchedTab = activeTab === 'matched' && user?.role === 'worker';
+
         if (nearbyJobs.length === 0) {
-          const fallback = activeTab === 'matched' && user?.role === 'worker'
+          // No nearby jobs — fall back based on active tab
+          const fallback = isWorkerMatchedTab
             ? await api.get('/jobs/recommended/for-worker')
             : await api.get('/jobs');
           setJobs(Array.isArray(fallback.data.jobs) ? fallback.data.jobs : []);
+          if (isWorkerMatchedTab) setWorkerSkills(fallback.data.workerSkills || []);
           setEffectiveRadiusKm(null);
-          setInfoMessage(`No nearby jobs found within ${radiusSequence[radiusSequence.length - 1]} km. Showing ${activeTab === 'matched' && user?.role === 'worker' ? 'skill-matched' : 'latest open'} jobs instead.`);
+          setInfoMessage(`No nearby jobs found within ${radiusSequence[radiusSequence.length - 1]} km. Showing ${isWorkerMatchedTab ? 'skill-matched' : 'latest open'} jobs instead.`);
+        } else if (isWorkerMatchedTab) {
+          // Nearby jobs found but on Matched Skills tab — filter by worker skills
+          // Fetch worker skills if not already loaded
+          let skills = workerSkills;
+          if (!skills.length) {
+            try {
+              const rec = await api.get('/jobs/recommended/for-worker');
+              skills = rec.data.workerSkills || [];
+              setWorkerSkills(skills);
+            } catch (_) {}
+          }
+          const lowerSkills = skills.map(s => s.toLowerCase());
+          const skillFiltered = nearbyJobs.filter(job =>
+            (job.requiredSkills || []).some(s => lowerSkills.includes(s.toLowerCase()))
+          );
+
+          if (skillFiltered.length > 0) {
+            setJobs(skillFiltered);
+            setEffectiveRadiusKm(usedRadius);
+            setInfoMessage(`Showing ${skillFiltered.length} skill-matched job${skillFiltered.length > 1 ? 's' : ''} near you within ${usedRadius} km.`);
+          } else {
+            // No nearby skill-matched jobs — fall back to all skill-matched
+            const rec = await api.get('/jobs/recommended/for-worker');
+            setJobs(Array.isArray(rec.data.jobs) ? rec.data.jobs : []);
+            setWorkerSkills(rec.data.workerSkills || []);
+            setEffectiveRadiusKm(null);
+            setInfoMessage(`No skill-matched jobs found near you within ${usedRadius} km. Showing all skill-matched jobs instead.`);
+          }
         } else {
+          // All Jobs tab — show all nearby
           setJobs(nearbyJobs);
           setEffectiveRadiusKm(usedRadius);
           if (usedRadius !== radiusKm) {
@@ -132,7 +165,8 @@ const Jobs = () => {
     };
 
     fetchNearbyJobs();
-  }, [coordinates, radiusKm]);
+  }, [coordinates, radiusKm, activeTab]);
+
 
   const clearNearby = () => {
     clearLocation();

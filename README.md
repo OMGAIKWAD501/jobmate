@@ -166,25 +166,6 @@ bash test-api.sh
 - **Tablet Support**: Responsive grid layouts
 - **Desktop Enhancement**: Full feature set on larger screens
 
-## 🚀 Deployment
-
-### Backend (Heroku)
-```bash
-heroku create jobmate-backend
-heroku config:set MONGODB_URI="your-mongodb-atlas-uri"
-heroku config:set JWT_SECRET="your-production-jwt-secret"
-git push heroku main
-```
-
-### Frontend (Vercel)
-```bash
-vercel --prod
-```
-
-### Docker Production
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
 
 ## 🤝 Contributing
 

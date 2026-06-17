@@ -130,17 +130,6 @@ The application comes with pre-populated sample data for testing:
 bash test-api.sh
 ```
 
-### Environment Variables
-
-Create a `.env` file in the backend directory:
-
-```env
-MONGODB_URI=mongodb://localhost:27017/jobmate
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-PORT=5000
-NODE_ENV=development
-```
-
 ## 📡 API Endpoints
 
 ### Authentication
